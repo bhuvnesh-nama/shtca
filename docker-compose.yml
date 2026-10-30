@@ -1,0 +1,82 @@
+services:
+  # ==========================================
+  # 1. Node.js Backend API & Socket.IO
+  # ==========================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: shtca-backend
+    restart: always
+    env_file:
+      - path: .env.production
+        required: false
+      - path: .env
+        required: false
+    environment:
+      NODE_ENV: production
+      PORT: 8000
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      DOMAIN_NAME: ${DOMAIN_NAME:-shtca.com}
+      API_DOMAIN: ${API_DOMAIN:-api.shtca.com}
+      FRONTEND_URL: https://${DOMAIN_NAME:-shtca.com}
+      ALLOWED_ORIGINS: https://${DOMAIN_NAME:-shtca.com},https://www.${DOMAIN_NAME:-shtca.com},https://${API_DOMAIN:-api.shtca.com}
+      EMAIL_HOST: ${EMAIL_HOST:-mail.suremarkettips.com}
+      EMAIL_PORT: ${EMAIL_PORT:-587}
+      EMAIL_USER: ${EMAIL_USER:-contact@suremarkettips.com}
+      EMAIL_PASS: ${EMAIL_PASS:-}
+      MAP_PROVIDER: ${MAP_PROVIDER:-osm}
+      MAP_TILES_URL: ${MAP_TILES_URL:-https://tile.openstreetmap.org/{z}/{x}/{y}.png}
+    volumes:
+      - uploads_data:/app/public/uploads
+    networks:
+      - shtca-network
+
+  # ==========================================
+  # 2. Caddy Web Server (Reverse Proxy + SSL + Frontend SPA)
+  # ==========================================
+  caddy:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ""
+        VITE_MAP_PROVIDER: ${MAP_PROVIDER:-osm}
+        VITE_MAP_TILES_URL: ${MAP_TILES_URL:-https://tile.openstreetmap.org/{z}/{x}/{y}.png}
+    container_name: shtca-caddy
+    restart: always
+    depends_on:
+      - backend
+    env_file:
+      - path: .env.production
+        required: false
+      - path: .env
+        required: false
+    environment:
+      DOMAIN_NAME: ${DOMAIN_NAME:-shtca.com}
+      API_DOMAIN: ${API_DOMAIN:-api.shtca.com}
+      ACME_EMAIL: ${ACME_EMAIL:-admin@shtca.com}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3 Support
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - shtca-network
+
+volumes:
+  uploads_data:
+    name: shtca_uploads_data
+  caddy_data:
+    name: shtca_caddy_data
+  caddy_config:
+    name: shtca_caddy_config
+
+networks:
+  shtca-network:
+    name: shtca_network
+    driver: bridge

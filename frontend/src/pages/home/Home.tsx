@@ -91,7 +91,9 @@ function Home() {
 
   // Socket.IO Realtime connection
   useEffect(() => {
-    const socketUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+    const socketUrl = import.meta.env.VITE_API_BASE_URL !== undefined && import.meta.env.VITE_API_BASE_URL !== ""
+      ? import.meta.env.VITE_API_BASE_URL
+      : (typeof window !== "undefined" ? window.location.origin : "http://localhost:8000");
     const socket: Socket = io(socketUrl, {
       withCredentials: true,
       transports: ["websocket", "polling"],

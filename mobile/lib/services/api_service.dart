@@ -6,18 +6,34 @@ import '../models/incident.dart';
 import '../models/broadcast.dart';
 
 class ApiService {
+  /// Production Backend API Gateway on dedicated subdomain
+  static const String productionApiUrl = 'https://api.shtca.com/api';
+
   static String get baseUrl {
-    if (kIsWeb) {
+    // 1. Compile-time flag override (e.g. flutter run --dart-define=API_URL=http://...)
+    const configuredUrl = String.fromEnvironment('API_URL', defaultValue: '');
+    if (configuredUrl.isNotEmpty) {
+      return configuredUrl;
+    }
+
+    // 2. In release APK / App Store mode, always connect to production API
+    if (kReleaseMode) {
+      return productionApiUrl;
+    }
+
+    // 3. Local emulator fallback if explicitly requested:
+    // flutter run --dart-define=USE_LOCAL_EMULATOR=true
+    const useLocal = bool.fromEnvironment('USE_LOCAL_EMULATOR', defaultValue: false);
+    if (useLocal) {
+      if (kIsWeb) return 'http://localhost:8000/api';
+      try {
+        if (Platform.isAndroid) return 'http://10.0.2.2:8000/api';
+      } catch (_) {}
       return 'http://localhost:8000/api';
     }
-    try {
-      if (Platform.isAndroid) {
-        return 'http://10.0.2.2:8000/api';
-      }
-    } catch (_) {
-      // Fallback if Platform check fails
-    }
-    return 'http://localhost:8000/api';
+
+    // 4. Default to production api.shtca.com so real devices & testing work immediately
+    return productionApiUrl;
   }
 
   static String formatMediaUrl(String url) {

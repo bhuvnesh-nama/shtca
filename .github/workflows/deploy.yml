@@ -1,0 +1,96 @@
+name: Production CI/CD Deployment
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  # ==========================================
+  # 1. TEST & VERIFICATION STAGE
+  # ==========================================
+  verify:
+    name: Build & Verify Codebase
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Verify Backend Build
+        run: |
+          cd backend
+          npm ci
+          npm run build
+
+      - name: Verify Frontend Build
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+
+  # ==========================================
+  # 2. AUTOMATED ZERO-DOWNTIME DEPLOYMENT
+  # ==========================================
+  deploy:
+    name: Deploy to Production Server (shtca.com)
+    needs: verify
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Execute Remote Deployment via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script_stop: true
+          script: |
+            echo "🚀 Starting automated deployment for shtca.com..."
+            
+            TARGET_DIR="${{ secrets.WORK_DIR || '/opt/shtca' }}"
+            
+            # Ensure target directory exists
+            if [ ! -d "$TARGET_DIR" ]; then
+              echo "Creating deployment directory: $TARGET_DIR"
+              mkdir -p "$TARGET_DIR"
+              git clone https://github.com/${{ github.repository }}.git "$TARGET_DIR"
+            fi
+
+            cd "$TARGET_DIR"
+
+            # Pull latest changes from main branch
+            echo "📥 Pulling latest release from main branch..."
+            git fetch --all
+            git reset --hard origin/main
+
+            # Ensure .env.production exists (fallback from example if first deploy)
+            if [ ! -f .env.production ] && [ ! -f .env ]; then
+              echo "⚠️ No .env.production found, creating from .env.production.example"
+              cp .env.production.example .env.production
+            fi
+
+            # Build and deploy Docker containers
+            echo "🐳 Building and spinning up containers..."
+            docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
+
+            # Clean up old unused docker layers to save disk space
+            docker image prune -f
+
+            # Verify services are healthy
+            docker compose -f docker-compose.prod.yml ps
+
+            echo "✅ Deployment completed successfully for shtca.com & api.shtca.com!"
+

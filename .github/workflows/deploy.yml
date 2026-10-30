@@ -62,32 +62,26 @@ jobs:
             
             TARGET_DIR="${{ secrets.WORK_DIR || '/opt/shtca' }}"
             
-            # Agar git repo exist nahi karti to clean clone karein (existing .env preserve karke)
-            if [ ! -d "$TARGET_DIR/.git" ]; then
-              echo "📦 Git repository not found in $TARGET_DIR. Cloning fresh repository..."
-              TEMP_ENV_BACKUP=$(mktemp -d)
-              
-              if [ -d "$TARGET_DIR" ]; then
-                echo "Backing up existing environment files..."
-                cp -r "$TARGET_DIR"/.env* "$TEMP_ENV_BACKUP"/ 2>/dev/null || true
-                rm -rf "$TARGET_DIR"
-              fi
-              
-              git clone "https://github.com/${{ github.repository }}.git" "$TARGET_DIR"
-              
-              # Restore environment files
-              cp -r "$TEMP_ENV_BACKUP"/.env* "$TARGET_DIR"/ 2>/dev/null || true
-              rm -rf "$TEMP_ENV_BACKUP"
-            fi
-
+            # Ensure target directory exists with proper ownership
+            sudo mkdir -p "$TARGET_DIR"
+            sudo chown -R $USER:$USER "$TARGET_DIR"
             cd "$TARGET_DIR"
             git config --global --add safe.directory "$TARGET_DIR"
 
-            # Pull latest changes from main branch
-            echo "📥 Syncing latest release from main branch..."
-            git remote set-url origin "https://github.com/${{ github.repository }}.git"
-            git fetch origin main
-            git reset --hard origin/main
+            # If git repo is not initialized, initialize and sync with main
+            if [ ! -d .git ]; then
+              echo "📦 Initializing and syncing repository in $TARGET_DIR..."
+              git init -b main
+              git remote add origin "https://github.com/${{ github.repository }}.git" || git remote set-url origin "https://github.com/${{ github.repository }}.git"
+              git fetch origin main
+              git reset --hard origin/main
+              git branch --set-upstream-to=origin/main main
+            else
+              echo "📥 Syncing latest release from main branch..."
+              git remote set-url origin "https://github.com/${{ github.repository }}.git"
+              git fetch origin main
+              git reset --hard origin/main
+            fi
 
             # Ensure .env.production exists (fallback from example if first deploy)
             if [ ! -f .env.production ] && [ ! -f .env ]; then

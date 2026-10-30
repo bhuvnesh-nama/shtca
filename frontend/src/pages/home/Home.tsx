@@ -1,66 +1,43 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { NoticeBanner } from "@/components/citizen/NoticeBanner";
 import { CitizenNavbar } from "@/components/citizen/CitizenNavbar";
 import { CitizenBottomNav } from "@/components/citizen/CitizenBottomNav";
 import { IncidentMap } from "@/components/citizen/IncidentMap";
 import { IncidentList } from "@/components/citizen/IncidentList";
-import { HealthScoreWidget } from "@/components/citizen/HealthScoreWidget";
 import { IncidentDetailDialog } from "@/components/citizen/IncidentDetailDialog";
 import { AlertsDrawer } from "@/components/citizen/AlertsDrawer";
-import { DemoSimulatorDialog } from "@/components/citizen/DemoSimulatorDialog";
-import { EmergencyBroadcastBanner } from "@/components/citizen/EmergencyBroadcastBanner";
 import { SosEmergencyDialog } from "@/components/citizen/SosEmergencyDialog";
-import { useLanguage } from "@/context/LanguageContext";
 import { incidentService } from "@/services/incidentService";
-import type { IncidentItem, HealthScoreData } from "@/types/incident";
+import type { IncidentItem } from "@/types/incident";
 import { io, Socket } from "socket.io-client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { Map, ListFilter, RefreshCw } from "lucide-react";
+import { Map, ListFilter, RefreshCw, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 function Home() {
   const navigate = useNavigate();
-  const { language } = useLanguage();
 
   // State
   const [incidents, setIncidents] = useState<IncidentItem[]>([]);
-  const [healthScore, setHealthScore] = useState<HealthScoreData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedIncident, setSelectedIncident] = useState<IncidentItem | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [alertsDrawerOpen, setAlertsDrawerOpen] = useState(false);
-  const [demoLabOpen, setDemoLabOpen] = useState(false);
+  const [broadcastCount, setBroadcastCount] = useState(0);
   const [sosDialogOpen, setSosDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"map" | "list">("map");
+  const [activeTab, setActiveTab] = useState<"split" | "map" | "list">("split");
 
   // Filters
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedWard, setSelectedWard] = useState("all");
+  const [selectedWard] = useState("all");
 
   // Location
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [isPickingLocation, setIsPickingLocation] = useState(false);
   const [pickedLocation, setPickedLocation] = useState<[number, number] | null>(null);
   const [isLiveConnected, setIsLiveConnected] = useState(false);
-
-  const handleWardChange = (ward: string) => {
-    setSelectedWard(ward);
-    if (ward === "Greenwood") {
-      setUserLocation([28.6304, 77.2177]);
-      toast.info("Filtered for Central Greenwood Society");
-    } else if (ward === "Palm") {
-      setUserLocation([28.5355, 77.3910]);
-      toast.info("Filtered for Palm Heights Residency");
-    } else if (ward === "Royal") {
-      setUserLocation([28.4595, 77.0266]);
-      toast.info("Filtered for Royal Meadows Enclave");
-    } else {
-      toast.info("Viewing all community areas");
-    }
-  };
 
   // Fetch Incidents
   const fetchIncidents = useCallback(async () => {
@@ -77,12 +54,8 @@ function Home() {
         params.radius = 15000;
       }
 
-      const [data, health] = await Promise.all([
-        incidentService.getNearbyIncidents(params),
-        incidentService.getHealthScore(),
-      ]);
+      const data = await incidentService.getNearbyIncidents(params);
       setIncidents(data);
-      setHealthScore(health);
     } catch (error: any) {
       console.error("Failed to fetch incidents:", error);
     } finally {
@@ -108,12 +81,10 @@ function Home() {
           setUserLocation(coords);
           setPickedLocation(coords);
         },
-        () => {
-          const fallbackCoords: [number, number] = [28.6139, 77.209];
-          setUserLocation(fallbackCoords);
-          setPickedLocation(fallbackCoords);
+        (err) => {
+          console.log("Device location not available / permission dismissed:", err.message);
         },
-        { timeout: 8000 }
+        { enableHighAccuracy: true, timeout: 8000 }
       );
     }
   }, []);
@@ -137,19 +108,17 @@ function Home() {
     socket.on("incident:new", ({ incident }) => {
       setIncidents((prev) => [incident, ...prev.filter((i) => i._id !== incident._id)]);
       toast.info(`New alert reported nearby: "${incident.title}"`);
-      incidentService.getHealthScore().then(setHealthScore).catch(() => {});
     });
 
     socket.on("incident:updated", ({ incident }) => {
       setIncidents((prev) =>
         prev.map((i) => (i._id === incident._id ? incident : i))
       );
-      incidentService.getHealthScore().then(setHealthScore).catch(() => {});
     });
 
     socket.on("incident:refresh", () => {
       fetchIncidentsRef.current();
-      toast.info("Demo environment re-seeded with clean sample data");
+      toast.info("Environment refreshed with clean sample data");
     });
 
     return () => {
@@ -170,14 +139,19 @@ function Home() {
   };
 
   const handleDetectUserLocation = () => {
-    if (!navigator.geolocation) return;
+    if (!navigator.geolocation) {
+      toast.error("Geolocation is not supported by your browser");
+      return;
+    }
+    toast.info("Acquiring GPS location...");
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const coords: [number, number] = [pos.coords.latitude, pos.coords.longitude];
         setUserLocation(coords);
-        toast.success("Map centered on your location");
+        toast.success("Map centered on your real location");
       },
-      (err) => toast.error("Could not obtain location: " + err.message)
+      (err) => toast.error("Could not obtain location: " + err.message),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   };
 
@@ -205,44 +179,39 @@ function Home() {
   const criticalCount = incidents.filter(
     (i) => i.severity === "critical" || i.severity === "high"
   ).length;
+  const totalAlertCount = criticalCount + broadcastCount;
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground pb-24 sm:pb-8">
-      {/* 1. Public Notice Banner */}
-      <NoticeBanner />
-
-      {/* 2. Top Navbar with Alerts Bell */}
+      {/* 1. Public Civic Portal Header */}
       <CitizenNavbar
         onOpenReportModal={() => navigate("/report")}
         onOpenAlerts={() => setAlertsDrawerOpen(true)}
-        onOpenDemoLab={() => setDemoLabOpen(true)}
         onOpenSos={() => setSosDialogOpen(true)}
-        alertCount={criticalCount}
+        alertCount={totalAlertCount}
         isConnectedLive={isLiveConnected}
-        selectedWard={selectedWard}
-        onSelectWard={handleWardChange}
+        onSearchGrievance={(query) => {
+          setSearchQuery(query);
+          if (query.trim()) {
+            toast.info(`Searching: "${query}"`);
+          }
+        }}
+        onSelectIncident={(incident) => {
+          setSelectedIncident(incident);
+          setDetailModalOpen(true);
+        }}
       />
 
-      {/* 3. Main Workspace */}
+      {/* 2. Main Civic Redressal Workspace */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-5 space-y-4">
-        {/* Phase 10: Official Emergency Broadcast & SOS Alerts Banner */}
-        <EmergencyBroadcastBanner ward={selectedWard} />
-
-        {/* Bonus Twist: Neighbourhood Health Score Widget */}
-        <HealthScoreWidget data={healthScore} loading={loading} />
-
-        {/* Desktop View Switcher Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-1">
+        {/* Civic Grievances View Switcher & Feed Header */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-1 border-b pb-2">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-              {language === "hi"
-                ? "स्थानीय समुदाय सुरक्षा एवं समस्या समाधान लाइव फ़ीड"
-                : "Neighbourhood Safety & Hazards Live Feed"}
-            </h1>
-            <p className="text-xs sm:text-sm text-muted-foreground">
-              {language === "hi"
-                ? "बिजली कटौती, जल आपूर्ति, सड़क गड्ढे, आवारा पशु एवं सुरक्षा अलर्ट"
-                : "Community reported power cuts, water issues, road hazards, stray animals & security alerts"}
+            <h2 className="text-base sm:text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
+              Public Grievances Feed
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Real-time geo-tagged civic grievances and field inspection updates
             </p>
           </div>
 
@@ -261,24 +230,37 @@ function Home() {
             {/* Desktop tab toggle */}
             <div className="hidden sm:flex items-center rounded-lg border border-border p-1 bg-muted/30">
               <button
-                onClick={() => setActiveTab("map")}
+                onClick={() => setActiveTab("split")}
                 className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-all ${
-                  activeTab === "map"
-                    ? "bg-background text-foreground shadow-xs"
+                  activeTab === "split"
+                    ? "bg-[#003366] text-white shadow-xs font-bold"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
+                title="View Map and Grievance List side-by-side"
               >
-                <Map className="size-3.5" /> Split Map
+                <Layers className="size-3.5" /> Split View
               </button>
               <button
                 onClick={() => setActiveTab("list")}
                 className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-all ${
                   activeTab === "list"
-                    ? "bg-background text-foreground shadow-xs"
+                    ? "bg-[#003366] text-white shadow-xs font-bold"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
+                title="View Full Public Grievances List"
               >
                 <ListFilter className="size-3.5" /> List Only
+              </button>
+              <button
+                onClick={() => setActiveTab("map")}
+                className={`flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-md transition-all ${
+                  activeTab === "map"
+                    ? "bg-[#003366] text-white shadow-xs font-bold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                title="View Full-Screen GIS Map"
+              >
+                <Map className="size-3.5" /> Full Map
               </button>
             </div>
           </div>
@@ -286,10 +268,14 @@ function Home() {
 
         {/* Layout: Responsive Dual View */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-          {/* Left Column: Filterable List */}
+          {/* Left Column: Filterable Grievances List */}
           <div
-            className={`lg:col-span-5 ${
-              activeTab === "list" ? "block" : "hidden sm:block"
+            className={`${
+              activeTab === "map"
+                ? "hidden"
+                : activeTab === "list"
+                ? "col-span-12 max-w-4xl mx-auto w-full"
+                : "col-span-12 lg:col-span-5"
             }`}
           >
             <div className="bg-card border rounded-xl p-3 sm:p-4 shadow-xs">
@@ -311,8 +297,12 @@ function Home() {
 
           {/* Right Column: Interactive Map */}
           <div
-            className={`lg:col-span-7 ${
-              activeTab === "map" ? "block" : "hidden sm:block"
+            className={`${
+              activeTab === "list"
+                ? "hidden"
+                : activeTab === "map"
+                ? "col-span-12 w-full"
+                : "col-span-12 lg:col-span-7"
             }`}
           >
             <div className="sticky top-20">
@@ -325,7 +315,19 @@ function Home() {
                 isPickingLocation={isPickingLocation}
                 pickedLocation={pickedLocation}
                 onLocationPick={handleLocationPick}
-                heightClass="h-[calc(100vh-250px)] sm:h-[70vh]"
+                heightClass={
+                  activeTab === "map"
+                    ? "h-[calc(100vh-210px)] min-h-[620px]"
+                    : "h-[calc(100vh-240px)] min-h-[580px]"
+                }
+                activeCategory={categoryFilter}
+                onSelectCategory={setCategoryFilter}
+                onIncidentUpdated={(updated) => {
+                  setSelectedIncident(updated);
+                  setIncidents((prev) =>
+                    prev.map((item) => (item._id === updated._id ? updated : item))
+                  );
+                }}
               />
             </div>
           </div>
@@ -334,10 +336,9 @@ function Home() {
 
       {/* 4. Mobile Bottom Navigation */}
       <CitizenBottomNav
-        currentTab={activeTab}
-        onTabChange={setActiveTab}
+        currentTab={activeTab === "list" ? "list" : "map"}
+        onTabChange={(tab) => setActiveTab(tab)}
         onOpenReportModal={() => navigate("/report")}
-        onOpenDashboard={() => navigate("/dashboard")}
         incidentCount={incidents.length}
       />
 
@@ -360,16 +361,10 @@ function Home() {
         onOpenChange={setAlertsDrawerOpen}
         incidents={incidents}
         onSelectIncident={handleSelectIncident}
+        onBroadcastCountChange={setBroadcastCount}
       />
 
-      {/* 8. Hackathon Demo Simulation Lab Modal */}
-      <DemoSimulatorDialog
-        open={demoLabOpen}
-        onOpenChange={setDemoLabOpen}
-        onActionCompleted={fetchIncidents}
-      />
-
-      {/* 9. Phase 10: Resident Emergency SOS Panic Beacon Modal */}
+      {/* 8. Resident Emergency SOS Panic Beacon Modal */}
       <SosEmergencyDialog
         open={sosDialogOpen}
         onOpenChange={setSosDialogOpen}

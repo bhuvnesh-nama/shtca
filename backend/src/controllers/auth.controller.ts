@@ -74,6 +74,40 @@ const loginUser = asyncHandler(async (req, res) => {
     );
 });
 
+// ADMIN / DEPARTMENT AUTHORITY LOGIN
+const adminLoginUser = asyncHandler(async (req: Request, res: Response) => {
+  const { email, password } = req.body;
+
+  const user = await User.findOne({ email });
+  if (!user) throw new ApiError(401, "Department authority account not found with this email");
+
+  if (user.role !== "admin" && user.role !== "officer") {
+    throw new ApiError(403, "Access restricted: This portal is for Department Heads & Administrative Officers only");
+  }
+
+  const isMatch = await user.comparePassword(password);
+  if (!isMatch) throw new ApiError(401, "Invalid credentials for authority account");
+
+  user.lastLogin = new Date();
+
+  const accessToken = user.generateAccessToken();
+  const refreshToken = user.generateRefreshToken();
+
+  user.refreshToken = refreshToken;
+  await user.save();
+
+  res.cookie("accessToken", accessToken, cookieOptions);
+  res.cookie("refreshToken", refreshToken, cookieOptions);
+
+  return res.status(200).json(
+    new ApiResponse(200, "Department authority authenticated successfully", {
+      user,
+      accessToken,
+      refreshToken,
+    })
+  );
+});
+
 // LOGOUT
 const logoutUser = asyncHandler(async (req, res) => {
   const userId = req.user._id;
@@ -266,6 +300,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 export {
   registerUser,
   loginUser,
+  adminLoginUser,
   logoutUser,
   getCurrentUser,
   forgotPassword,

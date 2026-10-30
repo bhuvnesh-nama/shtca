@@ -102,17 +102,17 @@ class HealthScoreCard extends StatelessWidget {
                     Row(
                       children: [
                         const Icon(
-                          Icons.health_and_safety_rounded,
+                          Icons.account_balance_rounded,
                           size: 16,
-                          color: AppTheme.primaryBlue,
+                          color: AppTheme.govAshokaBlue,
                         ),
                         const SizedBox(width: 4),
                         const Text(
-                          'Neighbourhood Health Index',
+                          'वार्ड नागरिक सेवा सूचकांक (Civic Index)',
                           style: TextStyle(
-                            fontSize: 13,
+                            fontSize: 12.5,
                             fontWeight: FontWeight.bold,
-                            color: AppTheme.textDark,
+                            color: AppTheme.govAshokaBlue,
                           ),
                         ),
                       ],
@@ -121,15 +121,15 @@ class HealthScoreCard extends StatelessWidget {
                     Text(
                       data!.label,
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 11.5,
                         fontWeight: FontWeight.w600,
                         color: scoreColor,
                       ),
                     ),
                     Text(
-                      '${data!.activeCount} active hazards • ${data!.resolvedCount} resolved',
+                      '${data!.activeCount} लंबित शिकायतें • ${data!.resolvedCount} निस्तारित',
                       style: const TextStyle(
-                        fontSize: 11,
+                        fontSize: 10.5,
                         color: AppTheme.textMuted,
                       ),
                     ),

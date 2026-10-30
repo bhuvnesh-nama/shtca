@@ -69,18 +69,22 @@ export const ReportIncidentDialog: React.FC<ReportIncidentDialogProps> = ({
   onTriggerMapPinSelect,
 }) => {
   const [category, setCategory] = useState<IncidentCategory>("power_cut");
+  const [ward, setWard] = useState("Ward 42 - Preet Vihar, East Zone");
+  const [pincode, setPincode] = useState("110092");
+  const [landmark, setLandmark] = useState("");
+  const [complainantPhone, setComplainantPhone] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [address, setAddress] = useState("");
   const [coords, setCoords] = useState<[number, number]>(
-    initialLocation || [28.6139, 77.209]
+    initialLocation || [20.5937, 78.9629]
   );
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Bonus Twist 1: Auto-Cluster Duplicate Detection State
+  // Nearby similar issue detection state
   const [duplicateIncident, setDuplicateIncident] = useState<IncidentItem | null>(null);
   const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
   const [linkToExisting, setLinkToExisting] = useState(true);
@@ -194,14 +198,19 @@ export const ReportIncidentDialog: React.FC<ReportIncidentDialogProps> = ({
         latitude: coords[0],
         longitude: coords[1],
         address: address.trim(),
+        ward,
+        pincode: pincode.trim(),
+        landmark: landmark.trim(),
+        complainantPhone: complainantPhone.trim(),
         media: mediaUrls,
         forceNew,
       });
 
       if (res?.isNewIncident === false) {
-        toast.success("Report auto-clustered with nearby active incident!");
+        toast.success("Report linked to existing nearby incident!");
       } else {
-        toast.success("Report submitted! It is now live on the community map.");
+        const ref = res?.incident?.complaintRef || "MCD-2026-XXXX";
+        toast.success(`Grievance registered successfully! Ref: ${ref}`);
       }
 
       onSuccess();
@@ -210,6 +219,7 @@ export const ReportIncidentDialog: React.FC<ReportIncidentDialogProps> = ({
       setTitle("");
       setDescription("");
       setAddress("");
+      setLandmark("");
       setMediaUrls([]);
       setDuplicateIncident(null);
     } catch (error: any) {
@@ -222,22 +232,52 @@ export const ReportIncidentDialog: React.FC<ReportIncidentDialogProps> = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-4 sm:p-6">
-        <DialogHeader className="text-left">
-          <DialogTitle className="text-xl font-bold flex items-center gap-2">
-            <span className="flex size-7 items-center justify-center rounded-md bg-blue-600 text-white text-xs font-bold shadow-xs">
-              +
+        <DialogHeader className="text-left space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="flex size-7 items-center justify-center rounded-md bg-[#003366] text-amber-400 text-xs font-bold shadow-xs">
+              CIVIC
             </span>
-            Report Local Hazard / Issue
-          </DialogTitle>
+            <DialogTitle className="text-lg font-bold">
+              Public Grievance Registration
+            </DialogTitle>
+          </div>
           <DialogDescription className="text-xs">
-            Report an incident in your society or neighbourhood. Nearby reports in the same category automatically cluster together.
+            Public Grievance Redressal and Monitoring System. Directly dispatched to the designated authority cell.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+          {/* Ward and Department Info */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold">Zone / Ward</Label>
+              <select
+                value={ward}
+                onChange={(e) => setWard(e.target.value)}
+                className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs truncate"
+              >
+                <option value="Ward 42 - Preet Vihar, East Zone">Zone 1 - East (Preet Vihar)</option>
+                <option value="Ward 18 - Connaught Place, Central Zone">Zone 2 - Central (Connaught Place)</option>
+                <option value="Ward 24 - Mayur Vihar, East Zone">Zone 3 - East (Mayur Vihar)</option>
+                <option value="Ward 35 - Karol Bagh, Central Zone">Zone 4 - Central (Karol Bagh)</option>
+                <option value="Ward 14 - Anand Vihar, East Zone">Zone 5 - East (Anand Vihar)</option>
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold">Mobile No. (SMS Alert)</Label>
+              <Input
+                placeholder="e.g. 9810XXXXXX"
+                value={complainantPhone}
+                onChange={(e) => setComplainantPhone(e.target.value)}
+                className="h-8 text-xs"
+              />
+            </div>
+          </div>
+
           {/* Category selection */}
-          <div className="space-y-2">
-            <Label className="text-xs font-semibold text-foreground">Incident Category</Label>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-foreground">Grievance Category</Label>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {CATEGORIES_CONFIG.map((cat) => {
                 const isSelected = category === cat.id;
@@ -246,15 +286,15 @@ export const ReportIncidentDialog: React.FC<ReportIncidentDialogProps> = ({
                     key={cat.id}
                     type="button"
                     onClick={() => setCategory(cat.id)}
-                    className={`flex flex-col items-start p-2.5 rounded-lg border text-left transition-all ${
+                    className={`flex flex-col items-start p-2 rounded-lg border text-left transition-all ${
                       isSelected
-                        ? "border-blue-600 bg-blue-50/70 dark:bg-blue-950/40 ring-1 ring-blue-600 font-medium"
+                        ? "border-[#003366] bg-blue-50/70 dark:bg-blue-950/40 ring-1 ring-[#003366] font-medium"
                         : "border-border hover:bg-muted/40 text-muted-foreground"
                     }`}
                   >
                     <div className="mb-1 flex items-center justify-between w-full">
                       {getCategoryIcon(cat.id)}
-                      {isSelected && <Check className="size-3.5 text-blue-600" />}
+                      {isSelected && <Check className="size-3.5 text-[#003366] dark:text-blue-400" />}
                     </div>
                     <span className="text-xs font-medium text-foreground leading-tight">
                       {cat.name}
@@ -266,34 +306,57 @@ export const ReportIncidentDialog: React.FC<ReportIncidentDialogProps> = ({
           </div>
 
           {/* Title */}
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <Label htmlFor="title" className="text-xs font-semibold">
-              Incident Headline
+              Headline / Subject <span className="text-rose-500">*</span>
             </Label>
             <Input
               id="title"
-              placeholder="e.g., Basement transformer spark / Stray dogs barking near park"
+              placeholder="e.g. Drinking water pipeline burst / Deep road pothole"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="text-sm"
+              className="text-xs h-8"
               required
             />
           </div>
 
           {/* Description */}
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <Label htmlFor="description" className="text-xs font-semibold">
-              Description & Current Impact
+              Description <span className="text-rose-500">*</span>
             </Label>
             <Textarea
               id="description"
-              placeholder="Describe the problem, severity, and any immediate impact on residents or vehicles..."
+              placeholder="Describe what happened, exact location, when problem started, and urgency of repair..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              className="text-sm resize-none"
+              className="text-xs resize-none"
               required
             />
+          </div>
+
+          {/* Landmark & Pincode */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold">Landmark</Label>
+              <Input
+                placeholder="e.g. Near Mother Dairy / Gate 3"
+                value={landmark}
+                onChange={(e) => setLandmark(e.target.value)}
+                className="text-xs h-8"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-semibold">Pincode</Label>
+              <Input
+                placeholder="e.g. 110092"
+                value={pincode}
+                onChange={(e) => setPincode(e.target.value)}
+                className="text-xs h-8"
+                maxLength={6}
+              />
+            </div>
           </div>
 
           {/* Location Picker */}
@@ -385,11 +448,11 @@ export const ReportIncidentDialog: React.FC<ReportIncidentDialogProps> = ({
             </div>
           </div>
 
-          {/* Auto-Cluster Duplicate Detection Notification (Bonus Twist 1) */}
+          {/* Nearby Similar Incident Notification */}
           {isCheckingDuplicate && (
             <div className="flex items-center gap-2 p-2 rounded-lg bg-blue-50/50 dark:bg-blue-950/30 border border-blue-200/50 dark:border-blue-900/50 text-[11px] text-muted-foreground">
               <Spinner className="size-3 text-blue-600" />
-              <span>Scanning neighbourhood for nearby matching reports...</span>
+              <span>Checking for similar open reports nearby...</span>
             </div>
           )}
 
@@ -403,7 +466,7 @@ export const ReportIncidentDialog: React.FC<ReportIncidentDialogProps> = ({
                   <div className="flex items-center gap-1.5">
                     <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wider flex items-center gap-1">
                       <Sparkles className="size-3 text-blue-600" />
-                      Auto-Cluster Candidate Detected
+                      Similar Issue Reported Nearby
                     </span>
                   </div>
                   <h4 className="text-xs font-semibold text-foreground leading-snug mt-0.5 truncate">
@@ -428,8 +491,8 @@ export const ReportIncidentDialog: React.FC<ReportIncidentDialogProps> = ({
                   className="text-xs font-medium text-foreground cursor-pointer select-none leading-tight"
                 >
                   {linkToExisting
-                    ? "Corroborate existing incident (auto-clusters evidence & priority)"
-                    : "Post as a separate, distinct incident"}
+                    ? "Link to existing report (attaches photos & details to speed up resolution)"
+                    : "Post as a separate, distinct report"}
                 </label>
               </div>
             </div>
@@ -450,7 +513,7 @@ export const ReportIncidentDialog: React.FC<ReportIncidentDialogProps> = ({
               type="submit"
               size="sm"
               disabled={isSubmitting || isUploadingImage}
-              className="bg-blue-600 hover:bg-blue-700 text-white min-w-[110px]"
+              className="bg-[#003366] hover:bg-[#002244] text-white min-w-[140px] font-semibold"
             >
               {isSubmitting ? (
                 <>
@@ -458,9 +521,9 @@ export const ReportIncidentDialog: React.FC<ReportIncidentDialogProps> = ({
                   Submitting...
                 </>
               ) : duplicateIncident && linkToExisting ? (
-                "Corroborate & Link"
+                "Add to Existing Ticket"
               ) : (
-                "Submit Report"
+                "Submit Grievance"
               )}
             </Button>
           </div>

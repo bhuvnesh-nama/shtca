@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/incident.dart';
+import '../services/api_service.dart';
+import '../services/translations.dart';
 import '../theme/app_theme.dart';
 
 class IncidentCard extends StatelessWidget {
@@ -28,18 +30,17 @@ class IncidentCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final catColor = AppTheme.getCategoryColor(incident.category);
     final catIcon = AppTheme.getCategoryIcon(incident.category);
-    final isVerified = incident.upvotes >= 3;
     final isCluster = incident.reportCount > 1;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: AppTheme.borderLight),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.015),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -47,205 +48,345 @@ class IncidentCard extends StatelessWidget {
       ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Top Row: Category tag, verification status, and status badge
-              Row(
+        borderRadius: BorderRadius.circular(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top Accent Ribbon
+            Container(
+              height: 3,
+              decoration: BoxDecoration(
+                color: incident.status == 'resolved_verified'
+                    ? AppTheme.emerald
+                    : incident.status == 'reopened'
+                        ? AppTheme.severityCritical
+                        : AppTheme.govAshokaBlue,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
+              ),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: catColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(catIcon, size: 13, color: catColor),
-                        const SizedBox(width: 4),
-                        Text(
-                          AppTheme.getCategoryName(incident.category).toUpperCase(),
-                          style: TextStyle(
+                  // Row 1: Tracking ID Badge & Department & Status
+                  Row(
+                    children: [
+                      // Tracking Reference
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: const Color(0xFFCBD5E1)),
+                        ),
+                        child: Text(
+                          incident.complaintRef ?? 'MCD-2026-PENDING',
+                          style: const TextStyle(
                             fontSize: 10,
+                            fontFamily: 'monospace',
                             fontWeight: FontWeight.bold,
-                            color: catColor,
-                            letterSpacing: 0.3,
+                            color: AppTheme.govAshokaBlue,
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                  const Spacer(),
-                  if (isVerified) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppTheme.emeraldLight,
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: AppTheme.emerald),
                       ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.check_circle, size: 11, color: AppTheme.emerald),
-                          SizedBox(width: 3),
-                          Text(
-                            'Verified',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.emeraldDark,
+                      const SizedBox(width: 6),
+
+                      // Category icon pill
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                        decoration: BoxDecoration(
+                          color: catColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(catIcon, size: 12, color: catColor),
+                            const SizedBox(width: 3),
+                            Text(
+                              incident.category.replaceAll('_', ' ').toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: catColor,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                  ],
-                  if (incident.complaintRef != null &&
-                      incident.status == 'resolved_verified') ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppTheme.emeraldLight,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        '#${incident.complaintRef}',
-                        style: const TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.emeraldDark,
+                          ],
                         ),
                       ),
+
+                      const Spacer(),
+
+                      // Status Badge
+                      _buildStatusChip(incident.status),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Row 2: Department Line
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppTheme.govAshokaBlue.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: AppTheme.govAshokaBlue.withValues(alpha: 0.15)),
                     ),
-                    const SizedBox(width: 4),
-                  ],
-                  _buildStatusChip(incident.status),
-                ],
-              ),
-              const SizedBox(height: 8),
-
-              // Title
-              Text(
-                incident.title,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textDark,
-                  height: 1.25,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 4),
-
-              // Description
-              Text(
-                incident.description,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppTheme.textMuted,
-                  height: 1.35,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 10),
-
-              const Divider(height: 1, color: AppTheme.borderLight),
-              const SizedBox(height: 10),
-
-              // Bottom Row: Location, cluster count, and upvote button
-              Row(
-                children: [
-                  const Icon(Icons.location_on_outlined, size: 13, color: AppTheme.textMuted),
-                  const SizedBox(width: 3),
-                  Expanded(
                     child: Text(
-                      incident.address.isNotEmpty ? incident.address : 'Society Area',
+                      '🏛️ ${incident.department}',
                       style: const TextStyle(
-                        fontSize: 11,
-                        color: AppTheme.textMuted,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.govAshokaBlue,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(height: 6),
 
-                  // Auto-cluster Indicator
-                  if (isCluster)
+                  // Assigned Local Authority Dispatch Box
+                  if (incident.assignedAuthority != null) ...[
                     Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
                       decoration: BoxDecoration(
-                        color: Colors.blue.withValues(alpha: 0.1),
+                        color: Colors.blue.shade50.withValues(alpha: 0.6),
                         borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Colors.blue.shade200),
                       ),
                       child: Row(
-                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.layers_rounded, size: 12, color: AppTheme.primaryBlue),
-                          const SizedBox(width: 3),
                           Text(
-                            '${incident.reportCount} reports',
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.primaryBlue,
+                            incident.assignedAuthority!.iconEmoji,
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              '${incident.assignedAuthority!.name} (${incident.assignedAuthority!.tierBadge})',
+                              style: const TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.govAshokaBlue,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                          if (incident.assignedAuthority!.distanceKm != null &&
+                              incident.assignedAuthority!.distanceKm! > 0)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: Colors.amber.shade100,
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                              child: Text(
+                                '⚡ Fallback ${incident.assignedAuthority!.distanceKm}km',
+                                style: TextStyle(
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.amber.shade900,
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ),
+                    const SizedBox(height: 6),
+                  ],
 
-                  // Upvote Button
-                  InkWell(
-                    onTap: onUpvote,
-                    borderRadius: BorderRadius.circular(6),
-                    child: Container(
+                  // Row 3: Title & Description
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              incident.title,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textDark,
+                                height: 1.25,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              incident.description,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppTheme.textMuted,
+                                height: 1.3,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (incident.media.isNotEmpty) ...[
+                        const SizedBox(width: 8),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: Image.network(
+                            ApiService.formatMediaUrl(incident.media.first),
+                            width: 52,
+                            height: 52,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Assigned JE Note (if available)
+                  if (incident.assignedOfficer != null) ...[
+                    Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppTheme.primaryBlue.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: AppTheme.primaryBlue.withValues(alpha: 0.25)),
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Colors.blue.shade200),
                       ),
                       child: Row(
-                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.thumb_up_alt_rounded, size: 12, color: AppTheme.primaryBlue),
+                          const Icon(Icons.engineering_outlined, size: 13, color: AppTheme.govAshokaBlue),
                           const SizedBox(width: 4),
-                          Text(
-                            '${incident.upvotes}',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.primaryBlue,
+                          Expanded(
+                            child: Text(
+                              'अधिकारी / JE: ${incident.assignedOfficer!.name} (${incident.assignedOfficer!.designation})',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.govAshokaBlue,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
+                    const SizedBox(height: 8),
+                  ],
 
-                  // Time
-                  Text(
-                    _formatTimeAgo(incident.createdAt),
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: AppTheme.textMuted,
-                    ),
+                  const Divider(height: 1, color: AppTheme.borderLight),
+                  const SizedBox(height: 8),
+
+                  // Bottom Row: Ward / Landmark, reports, upvote & time
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on_outlined, size: 12, color: AppTheme.textMuted),
+                      const SizedBox(width: 3),
+                      Expanded(
+                        child: Text(
+                          '${incident.ward} • ${incident.landmark ?? incident.address}',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: AppTheme.textMuted,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+
+                      // Grouped citizen reports
+                      if (isCluster)
+                        Container(
+                          margin: const EdgeInsets.only(right: 6),
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                          child: Text(
+                            '${incident.reportCount} नागरिक',
+                            style: const TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.govAshokaBlue,
+                            ),
+                          ),
+                        ),
+
+                      // Upvote Button
+                      InkWell(
+                        onTap: onUpvote,
+                        borderRadius: BorderRadius.circular(4),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppTheme.govAshokaBlue.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: AppTheme.govAshokaBlue.withValues(alpha: 0.2)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.thumb_up_alt_rounded, size: 11, color: AppTheme.govAshokaBlue),
+                              const SizedBox(width: 3),
+                              Text(
+                                '${incident.upvotes}',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.govAshokaBlue,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+
+                      // Comments count badge
+                      if (incident.comments.isNotEmpty) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2.5),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: Colors.grey.shade300),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.chat_bubble_outline_rounded, size: 10, color: Colors.grey),
+                              const SizedBox(width: 2.5),
+                              Text(
+                                '${incident.comments.length}',
+                                style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Colors.black87),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                      ],
+
+                      // Time
+                      Text(
+                        _formatTimeAgo(incident.createdAt),
+                        style: const TextStyle(
+                          fontSize: 9,
+                          color: AppTheme.textMuted,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -254,33 +395,38 @@ class IncidentCard extends StatelessWidget {
   Widget _buildStatusChip(String status) {
     Color bg = Colors.grey.shade100;
     Color text = Colors.grey.shade700;
-    String label = status.replaceAll('_', ' ');
+    String label = AppTranslations.statusName(status);
 
     switch (status) {
       case 'reported':
         bg = Colors.amber.shade50;
-        text = Colors.amber.shade800;
-        label = 'Reported';
+        text = Colors.amber.shade900;
+        break;
+      case 'under_review':
+        bg = Colors.purple.shade50;
+        text = Colors.purple.shade800;
         break;
       case 'confirmed':
         bg = Colors.blue.shade50;
-        text = Colors.blue.shade700;
-        label = 'Confirmed';
+        text = Colors.blue.shade800;
         break;
       case 'action_pending':
+      case 'work_in_progress':
         bg = Colors.orange.shade50;
-        text = Colors.orange.shade800;
-        label = 'Action Pending';
+        text = Colors.orange.shade900;
         break;
       case 'resolved_verified':
         bg = AppTheme.emeraldLight;
         text = AppTheme.emeraldDark;
-        label = 'Resolved';
+        break;
+      case 'reopened':
+        bg = Colors.red.shade50;
+        text = Colors.red.shade800;
         break;
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(4),

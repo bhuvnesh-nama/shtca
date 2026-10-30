@@ -12,7 +12,7 @@ const statusConfig: Record<
   { label: string; bg: string; text: string; border: string; dot: string }
 > = {
   reported: {
-    label: "Reported",
+    label: "Pending Review",
     bg: "bg-slate-100 dark:bg-slate-800",
     text: "text-slate-700 dark:text-slate-300",
     border: "border-slate-300 dark:border-slate-700",
@@ -33,28 +33,28 @@ const statusConfig: Record<
     dot: "bg-blue-600",
   },
   action_pending: {
-    label: "Action Pending",
+    label: "Assigned to Officer",
     bg: "bg-indigo-50 dark:bg-indigo-950/40",
     text: "text-indigo-700 dark:text-indigo-400",
     border: "border-indigo-300 dark:border-indigo-800",
     dot: "bg-indigo-600",
   },
   resolution_submitted: {
-    label: "Resolution Submitted",
+    label: "Work in Progress",
     bg: "bg-purple-50 dark:bg-purple-950/40",
     text: "text-purple-700 dark:text-purple-400",
     border: "border-purple-300 dark:border-purple-800",
     dot: "bg-purple-600",
   },
   resolved_verified: {
-    label: "Resolved - Verified",
+    label: "Resolved",
     bg: "bg-emerald-50 dark:bg-emerald-950/40",
     text: "text-emerald-700 dark:text-emerald-400",
     border: "border-emerald-300 dark:border-emerald-800",
     dot: "bg-emerald-600",
   },
   closed_unverified: {
-    label: "Closed - Unverified",
+    label: "Closed",
     bg: "bg-zinc-100 dark:bg-zinc-800",
     text: "text-zinc-600 dark:text-zinc-400",
     border: "border-zinc-300 dark:border-zinc-700",
@@ -68,11 +68,11 @@ const statusConfig: Record<
     dot: "bg-rose-500",
   },
   reopened: {
-    label: "Reopened",
-    bg: "bg-orange-50 dark:bg-orange-950/40",
-    text: "text-orange-700 dark:text-orange-400",
-    border: "border-orange-300 dark:border-orange-800",
-    dot: "bg-orange-500",
+    label: "Re-Opened",
+    bg: "bg-rose-50 dark:bg-rose-950/50",
+    text: "text-rose-700 dark:text-rose-300 font-bold",
+    border: "border-rose-300 dark:border-rose-800",
+    dot: "bg-rose-600 animate-ping",
   },
 };
 

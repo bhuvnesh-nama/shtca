@@ -60,20 +60,17 @@ export const HealthScoreWidget: React.FC<HealthScoreWidgetProps> = ({
               </span>
             </div>
 
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-sm text-foreground flex items-center gap-1.5">
-                  <Activity className="size-4 text-blue-600" />
-                  Neighbourhood Safety & Health Index
-                </span>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300">
-                  Bonus Feature
-                </span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-sm text-foreground flex items-center gap-1.5">
+                    <Activity className="size-4 text-[#003366] dark:text-blue-400" />
+                    Civic Health & Redressal Index
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {label} • {activeCount} active grievance{activeCount === 1 ? "" : "s"} under departmental review
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {label} • {activeCount} active issue{activeCount === 1 ? "" : "s"} reported
-              </p>
-            </div>
           </div>
 
           {/* Right: Quick category badges */}

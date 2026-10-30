@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  static const Color primaryBlue = Color(0xFF2563EB);
-  static const Color secondaryNavy = Color(0xFF1E3A8A);
-  static const Color backgroundLight = Color(0xFFF8FAFC);
+  // Indian Government Municipal Palette
+  static const Color govAshokaBlue = Color(0xFF003366); // Ashoka Navy
+  static const Color govSaffron = Color(0xFFFF9933);    // Tricolor Saffron
+  static const Color govGreen = Color(0xFF138808);      // Tricolor Green
+  static const Color primaryBlue = Color(0xFF003366);
+  static const Color secondaryNavy = Color(0xFF0B2545);
+  static const Color backgroundLight = Color(0xFFF4F6F9);
   static const Color cardLight = Colors.white;
   static const Color textDark = Color(0xFF0F172A);
   static const Color textMuted = Color(0xFF64748B);
@@ -24,11 +28,11 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      primaryColor: primaryBlue,
+      primaryColor: govAshokaBlue,
       scaffoldBackgroundColor: backgroundLight,
-      colorScheme: ColorScheme.light(
-        primary: primaryBlue,
-        secondary: secondaryNavy,
+      colorScheme: const ColorScheme.light(
+        primary: govAshokaBlue,
+        secondary: govSaffron,
         surface: cardLight,
         error: severityHigh,
       ),
@@ -40,7 +44,7 @@ class AppTheme {
         centerTitle: false,
         titleTextStyle: TextStyle(
           color: textDark,
-          fontSize: 18,
+          fontSize: 17,
           fontWeight: FontWeight.bold,
           letterSpacing: -0.3,
         ),
@@ -49,13 +53,13 @@ class AppTheme {
         color: cardLight,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
           side: const BorderSide(color: borderLight, width: 1),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: primaryBlue,
+          backgroundColor: govAshokaBlue,
           foregroundColor: Colors.white,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -66,6 +70,19 @@ class AppTheme {
             fontSize: 14,
             fontWeight: FontWeight.w600,
           ),
+        ),
+      ),
+    );
+  }
+
+  // Official Indian Tricolor Strip Widget
+  static Widget tricolorStrip({double height = 4.0}) {
+    return Container(
+      height: height,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [govSaffron, Colors.white, govGreen],
+          stops: [0.33, 0.5, 0.67],
         ),
       ),
     );
@@ -100,7 +117,7 @@ class AppTheme {
         return const Color(0xFFD97706); // Amber
       case 'water_issue':
       case 'water_drainage':
-        return const Color(0xFF2563EB); // Blue
+        return const Color(0xFF0284C7); // Sky Blue
       case 'theft_security':
       case 'safety_concern':
         return const Color(0xFFE11D48); // Rose
@@ -109,7 +126,7 @@ class AppTheme {
       case 'road_hazard':
         return const Color(0xFFCA8A04); // Yellow
       case 'sanitation':
-        return const Color(0xFF059669); // Green
+        return const Color(0xFF059669); // Emerald
       default:
         return const Color(0xFF64748B);
     }
@@ -119,21 +136,43 @@ class AppTheme {
     switch (category) {
       case 'power_cut':
       case 'utility_disruption':
-        return 'Power Cut';
+        return 'Power Cut / विद्युत आपूर्ति';
       case 'water_issue':
       case 'water_drainage':
-        return 'Water Issue';
+        return 'Water Leakage / जल आपूर्ति';
       case 'theft_security':
       case 'safety_concern':
-        return 'Theft & Security';
+        return 'Security / सुरक्षा व अतिक्रमण';
       case 'stray_animals':
-        return 'Stray Animals';
+        return 'Stray Animals / आवारा पशु';
       case 'road_hazard':
-        return 'Road Hazard';
+        return 'Road Pothole / सड़क गड्ढे';
       case 'sanitation':
-        return 'Sanitation';
+        return 'Sanitation / सफाई व कचरा';
       default:
-        return 'Local Issue';
+        return 'Civic Grievance / जन शिकायत';
+    }
+  }
+
+  static String getDepartmentName(String category) {
+    switch (category) {
+      case 'power_cut':
+      case 'utility_disruption':
+        return 'Power Discom & Street Lighting (विद्युत विभाग)';
+      case 'water_issue':
+      case 'water_drainage':
+        return 'Jal Board / Water Works & Sewerage (जल बोर्ड)';
+      case 'road_hazard':
+        return 'PWD Roads & Infrastructure (लोक निर्माण विभाग)';
+      case 'sanitation':
+        return 'Solid Waste Management & Sanitation (सफाई विभाग)';
+      case 'stray_animals':
+        return 'Stray Animal Control & Veterinary (पशु नियंत्रण)';
+      case 'theft_security':
+      case 'safety_concern':
+        return 'Municipal Encroachment & Security (सुरक्षा सेल)';
+      default:
+        return 'General Municipal Services (नगर निगम)';
     }
   }
 
@@ -148,7 +187,7 @@ class AppTheme {
       case 'low':
         return severityLow;
       default:
-        return primaryBlue;
+        return govAshokaBlue;
     }
   }
 }

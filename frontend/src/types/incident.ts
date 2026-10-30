@@ -56,6 +56,22 @@ export interface IncidentItem {
   resolutionMedia?: string[];
   resolutionNote?: string;
   complaintRef?: string;
+  department?: string;
+  ward?: string;
+  pincode?: string;
+  landmark?: string;
+  assignedOfficer?: {
+    name: string;
+    designation: string;
+    phone?: string;
+    assignedAt: string;
+  };
+  actionTakenReport?: {
+    actionSummary: string;
+    resolvedBy: string;
+    completionDate?: string;
+    afterMedia?: string[];
+  };
   resolvedAt?: string;
   reopenedAt?: string;
   reopenReason?: string;
@@ -66,9 +82,24 @@ export interface IncidentItem {
     notes?: string;
   };
   trustScore?: number;
-  ward?: string;
   flagsCount?: number;
   flags?: Array<{ identifier: string; reason: string; createdAt: string }>;
+  assignedAuthority?: {
+    officeId?: string;
+    tier: "apex_central" | "zonal_ward" | "local_society";
+    name: string;
+    office: string;
+    jurisdictionType: string;
+    distanceKm?: number;
+    routingReason: string;
+    contactNumber?: string;
+  };
+  comments?: Array<{
+    author: string;
+    role: string;
+    message: string;
+    createdAt: string;
+  }>;
   reports: ReportItem[] | string[];
   reportCount: number;
   upvotes: number;

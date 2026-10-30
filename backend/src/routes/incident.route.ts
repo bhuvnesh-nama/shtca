@@ -19,6 +19,8 @@ import {
   dismissBroadcast,
   triggerSosEmergency,
   getPerformanceMetrics,
+  addIncidentComment,
+  getAuthorityOffices,
 } from "../controllers/incident.controller";
 import { optionalAuthMiddleware } from "../middlewares/auth.middleware";
 
@@ -27,6 +29,7 @@ const router = Router();
 router.get("/health-score", getHealthScore);
 router.get("/analytics", getIncidentAnalytics);
 router.get("/performance", getPerformanceMetrics);
+router.get("/authorities", getAuthorityOffices);
 router.get("/broadcasts", getActiveBroadcasts);
 router.post("/broadcasts", optionalAuthMiddleware, createBroadcast);
 router.delete("/broadcasts/:id", optionalAuthMiddleware, dismissBroadcast);
@@ -36,6 +39,7 @@ router.get("/categories", getCategories);
 router.get("/", getNearbyIncidents);
 router.get("/:id", getIncidentById);
 router.post("/:id/upvote", optionalAuthMiddleware, upvoteIncident);
+router.post("/:id/comments", optionalAuthMiddleware, addIncidentComment);
 router.patch("/:id/status", optionalAuthMiddleware, updateIncidentStatus);
 router.post("/:id/resolve", optionalAuthMiddleware, resolveIncident);
 router.post("/:id/flag", optionalAuthMiddleware, flagIncident);

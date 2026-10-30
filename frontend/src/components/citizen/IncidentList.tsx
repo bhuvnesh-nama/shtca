@@ -2,6 +2,7 @@ import React from "react";
 import type { IncidentItem, IncidentCategory } from "@/types/incident";
 import { CATEGORIES_CONFIG } from "@/types/incident";
 import { StatusBadge } from "./StatusBadge";
+import { formatMediaUrl } from "@/utils/media";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -175,7 +176,7 @@ export const IncidentList: React.FC<IncidentListProps> = ({
                   {hasMedia ? (
                     <div className="size-16 sm:size-20 shrink-0 rounded-md overflow-hidden bg-muted border border-border">
                       <img
-                        src={incident.media[0]}
+                        src={formatMediaUrl(incident.media[0])}
                         alt={incident.title}
                         className="size-full object-cover"
                         loading="lazy"
@@ -186,28 +187,35 @@ export const IncidentList: React.FC<IncidentListProps> = ({
                   <div className="flex flex-col flex-1 min-w-0 justify-between">
                     <div>
                       <div className="flex items-center justify-between gap-1 mb-1">
-                        <span className="flex items-center gap-1 text-[11px] font-bold uppercase text-blue-600 dark:text-blue-400">
-                          {getCategoryIcon(incident.category)}
-                          <span className="truncate">{incident.category.replace("_", " ")}</span>
-                        </span>
-                        <div className="flex items-center gap-1 flex-wrap justify-end">
-                          {incident.complaintRef && incident.status === "resolved_verified" && (
-                            <span className="text-[10px] font-mono font-semibold px-1.5 py-0.2 rounded-sm bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300">
-                              Ref #{incident.complaintRef}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {incident.complaintRef && (
+                            <span className="font-mono text-[10px] font-bold text-[#003366] dark:text-blue-300 bg-blue-50 dark:bg-blue-950 px-1.5 py-0.5 rounded-sm border border-blue-200 dark:border-blue-900">
+                              {incident.complaintRef}
                             </span>
                           )}
+                          <span className="flex items-center gap-1 text-[11px] font-bold uppercase text-blue-600 dark:text-blue-400">
+                            {getCategoryIcon(incident.category)}
+                            <span className="truncate">{incident.category.replace("_", " ")}</span>
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1 flex-wrap justify-end">
                           {isCommunityVerified && (
                             <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 px-1.5 py-0.5 rounded-full">
-                              <CheckCircle className="size-3 text-emerald-500" /> Verified
+                              <CheckCircle className="size-3 text-emerald-500" /> Confirmed
                             </span>
                           )}
                           <StatusBadge status={incident.status} />
                         </div>
                       </div>
 
-                      <h4 className="font-semibold text-foreground text-sm leading-snug line-clamp-1 mb-1">
+                      <h4 className="font-semibold text-foreground text-sm leading-snug line-clamp-1 mb-0.5">
                         {incident.title}
                       </h4>
+                      {incident.department && (
+                        <p className="text-[10px] font-medium text-muted-foreground truncate mb-1">
+                          {incident.department}
+                        </p>
+                      )}
                       <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
                         {incident.description}
                       </p>

@@ -4,6 +4,9 @@ export interface IUser extends Document {
   name: string;
   email: string;
   password: string;
+  phone?: string;
+  ward?: string;
+  role?: string;
   lastLogin?: Date;
   isEmailVerified: boolean;
   emailVerificationToken?: string;

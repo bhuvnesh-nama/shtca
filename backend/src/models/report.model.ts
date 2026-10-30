@@ -21,6 +21,11 @@ export interface IReport extends Document {
     coordinates: [number, number]; // [lng, lat]
   };
   address?: string;
+  department?: string;
+  ward?: string;
+  pincode?: string;
+  landmark?: string;
+  complainantPhone?: string;
   media: string[];
   status: "submitted" | "linked" | "under_review" | "resolved" | "rejected";
   reporterName?: string;
@@ -78,6 +83,26 @@ const reportSchema = new Schema<IReport>(
       },
     },
     address: {
+      type: String,
+      trim: true,
+    },
+    department: {
+      type: String,
+      trim: true,
+    },
+    ward: {
+      type: String,
+      trim: true,
+    },
+    pincode: {
+      type: String,
+      trim: true,
+    },
+    landmark: {
+      type: String,
+      trim: true,
+    },
+    complainantPhone: {
       type: String,
       trim: true,
     },

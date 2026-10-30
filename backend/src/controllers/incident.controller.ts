@@ -7,8 +7,9 @@ import Report from "../models/report.model";
 import Broadcast from "../models/broadcast.model";
 import { seedDemoIncidents } from "../utils/seed";
 import { queryCache } from "../utils/cache";
+import { AUTHORITY_REGISTRY } from "../utils/authorityRouting";
 
-// Categories directly addressing the Hackathon Problem Statement
+// Incident Categories
 export const INCIDENT_CATEGORIES = [
   {
     id: "power_cut",
@@ -62,7 +63,7 @@ export const INCIDENT_CATEGORIES = [
 ];
 
 export const getNearbyIncidents = asyncHandler(async (req: Request, res: Response) => {
-  const { lat, lng, radius, category, status, search, limit, ward, flagged } = req.query;
+  const { lat, lng, radius, category, status, search, limit, ward, flagged, officeId } = req.query;
 
   // High-performance geospatial caching (Phase 10: Scale)
   const cacheKey = `incidents:${JSON.stringify(req.query)}`;
@@ -75,6 +76,10 @@ export const getNearbyIncidents = asyncHandler(async (req: Request, res: Respons
   }
 
   const query: any = {};
+
+  if (officeId && officeId !== "all" && officeId !== "AUTH-APEX-01") {
+    query["assignedAuthority.officeId"] = String(officeId);
+  }
 
   if (ward && ward !== "all") {
     query.ward = { $regex: String(ward).trim(), $options: "i" };
@@ -97,9 +102,13 @@ export const getNearbyIncidents = asyncHandler(async (req: Request, res: Respons
 
   if (search) {
     query.$or = [
+      { complaintRef: { $regex: search, $options: "i" } },
       { title: { $regex: search, $options: "i" } },
       { description: { $regex: search, $options: "i" } },
       { address: { $regex: search, $options: "i" } },
+      { department: { $regex: search, $options: "i" } },
+      { ward: { $regex: search, $options: "i" } },
+      { landmark: { $regex: search, $options: "i" } },
     ];
   }
 
@@ -218,10 +227,10 @@ export const upvoteIncident = asyncHandler(async (req: Request, res: Response) =
   );
 });
 
-// ADMIN STATUS UPDATE (RWA / Society Admin lifecycle management)
+// MUNICIPAL ADMIN STATUS UPDATE (Civic Authority lifecycle management)
 export const updateIncidentStatus = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { status, resolutionNote, resolutionMedia, complaintRef } = req.body;
+  const { status, resolutionNote, resolutionMedia, complaintRef, assignedOfficer, department, actionTakenReport } = req.body;
 
   const validStatuses = [
     "reported",
@@ -246,13 +255,30 @@ export const updateIncidentStatus = asyncHandler(async (req: Request, res: Respo
   incident.status = status;
   if (resolutionNote) {
     incident.resolutionNote = resolutionNote;
-    if (!incident.description.includes("[RWA Update]")) {
-      incident.description = `${incident.description}\n\n[RWA Update]: ${resolutionNote}`;
+    if (!incident.description.includes("[Municipal Action Taken Report]")) {
+      incident.description = `${incident.description}\n\n[Municipal Action Taken Report]: ${resolutionNote}`;
     }
   }
 
   if (complaintRef) {
     incident.complaintRef = complaintRef;
+  }
+
+  if (department) {
+    incident.department = department;
+  }
+
+  if (assignedOfficer) {
+    incident.assignedOfficer = {
+      name: assignedOfficer.name || "Junior Engineer (JE)",
+      designation: assignedOfficer.designation || "Zonal Field Officer",
+      phone: assignedOfficer.phone || "",
+      assignedAt: new Date(),
+    };
+  }
+
+  if (actionTakenReport) {
+    incident.actionTakenReport = actionTakenReport;
   }
 
   if (Array.isArray(resolutionMedia) && resolutionMedia.length > 0) {
@@ -276,7 +302,7 @@ export const updateIncidentStatus = asyncHandler(async (req: Request, res: Respo
   );
 });
 
-// RWA ADMIN MERGE / CLUSTER INCIDENTS (Bonus Twist: Auto-cluster & Duplicate Handling)
+// RWA ADMIN MERGE / CONSOLIDATE INCIDENTS
 export const mergeIncidents = asyncHandler(async (req: Request, res: Response) => {
   const { sourceIncidentId, targetIncidentId, reason } = req.body;
 
@@ -505,7 +531,7 @@ export const fieldVerifyIncident = asyncHandler(async (req: Request, res: Respon
   );
 });
 
-// NEIGHBOURHOOD HEALTH SCORE (Problem Statement Requirement: Bonus twist Health Score)
+// NEIGHBOURHOOD SAFETY & HEALTH SCORE
 export const getHealthScore = asyncHandler(async (_req: Request, res: Response) => {
   const activeIncidents = await Incident.find({
     status: { $nin: ["resolved_verified", "closed_unverified", "rejected"] },
@@ -626,7 +652,7 @@ export const getIncidentAnalytics = asyncHandler(async (_req: Request, res: Resp
   const resolutionRate = totalIncidents > 0 ? Math.round((resolvedCount / totalIncidents) * 100) : 0;
   const totalUpvotes = allIncidents.reduce((acc, curr) => acc + (curr.upvotes || 1), 0);
 
-  // 1. Hotspots calculation (Feature 60)
+  // 1. Hotspots calculation
   const locationMap: Record<string, { address: string; count: number; active: number; categories: Set<string> }> = {};
   for (const inc of allIncidents) {
     const addr = (inc.address || "Society Area").trim();
@@ -650,7 +676,7 @@ export const getIncidentAnalytics = asyncHandler(async (_req: Request, res: Resp
       primaryCategory: Array.from(h.categories)[0] || "other",
     }));
 
-  // 2. Response Time Analytics (Feature 61)
+  // 2. Response Time Analytics
   const resolvedWithTimestamps = allIncidents.filter((i) => i.status === "resolved_verified" && i.resolvedAt);
   let avgResolutionHours = 2.4;
   if (resolvedWithTimestamps.length > 0) {
@@ -661,16 +687,18 @@ export const getIncidentAnalytics = asyncHandler(async (_req: Request, res: Resp
     avgResolutionHours = Math.max(0.5, Math.round((totalDiffHours / resolvedWithTimestamps.length) * 10) / 10);
   }
 
-  // 3. Multi-Ward Pilot Benchmarks (Feature 63)
+  // 3. Multi-Ward Municipal Benchmarks
   const pilotWards = [
-    { name: "Central Greenwood Society", defaultScore: 88 },
-    { name: "Palm Heights Residency", defaultScore: 76 },
-    { name: "Royal Meadows Enclave", defaultScore: 82 },
+    { name: "Ward 42 - Preet Vihar (East Zone)", key: "Ward 42", defaultScore: 92 },
+    { name: "Ward 18 - Connaught Place (Central Zone)", key: "Ward 18", defaultScore: 95 },
+    { name: "Ward 24 - Mayur Vihar (East Zone)", key: "Ward 24", defaultScore: 88 },
+    { name: "Ward 35 - Karol Bagh (Central Zone)", key: "Ward 35", defaultScore: 85 },
+    { name: "Ward 14 - Anand Vihar (East Zone)", key: "Ward 14", defaultScore: 90 },
   ];
 
   const wardBenchmarks = pilotWards.map((w) => {
     const wardIncidents = allIncidents.filter((i) =>
-      (i.ward || "").toLowerCase().includes(w.name.split(" ")[1]?.toLowerCase() || "")
+      (i.ward || "").toLowerCase().includes(w.key.toLowerCase())
     );
     const count = wardIncidents.length || 2;
     const resolved = wardIncidents.filter((i) => i.status === "resolved_verified").length;
@@ -707,7 +735,7 @@ export const getIncidentAnalytics = asyncHandler(async (_req: Request, res: Resp
   );
 });
 
-// DEMO SIMULATOR LAB (Feature 65: Controlled Simulation Lab for Hackathon Showcase)
+// SCENARIO SIMULATOR & TESTING
 export const simulateDemoScenario = asyncHandler(async (req: Request, res: Response) => {
   const { scenario, incidentId } = req.body;
   const io = req.app.get("io");
@@ -719,7 +747,7 @@ export const simulateDemoScenario = asyncHandler(async (req: Request, res: Respo
       io.emit("incident:refresh", { count: refreshed.length });
     }
     return res.status(200).json(
-      new ApiResponse(200, "Demo environment successfully reset with clean sample data", {
+      new ApiResponse(200, "Sample data refreshed successfully", {
         refreshedCount: refreshed.length,
       })
     );
@@ -737,7 +765,7 @@ export const simulateDemoScenario = asyncHandler(async (req: Request, res: Respo
     }
 
     if (!target) {
-      throw new ApiError(404, "No active incident found to simulate duplicate corroboration");
+      throw new ApiError(404, "No active incident found to simulate duplicate report");
     }
 
     // Create a new report close to target coordinates
@@ -745,14 +773,14 @@ export const simulateDemoScenario = asyncHandler(async (req: Request, res: Respo
     const simulatedReport = new Report({
       incident: target._id,
       category: target.category,
-      title: `[Simulated] Additional corroboration for ${target.title.slice(0, 30)}...`,
+      title: `Additional resident report for ${target.title.slice(0, 30)}...`,
       description: "Confirmed. I can see the same issue from Flat C-302. Please dispatch maintenance.",
       location: {
         type: "Point",
         coordinates: [targetLng + 0.0002, targetLat + 0.0002],
       },
       address: `${target.address || "Society Area"} (Corroborated by Block C)`,
-      reporterName: "Simulated Resident: Anita Kapoor (Flat C-302)",
+      reporterName: "Anita Kapoor (Flat C-302)",
       status: "linked",
     });
 
@@ -769,7 +797,7 @@ export const simulateDemoScenario = asyncHandler(async (req: Request, res: Respo
     }
 
     return res.status(200).json(
-      new ApiResponse(200, "Simulated duplicate resident report auto-clustered into incident!", {
+      new ApiResponse(200, "Resident report linked to active incident!", {
         incident: target,
         report: simulatedReport,
       })
@@ -788,11 +816,11 @@ export const simulateDemoScenario = asyncHandler(async (req: Request, res: Respo
       throw new ApiError(404, "No incident found to upvote");
     }
 
-    // Add 3 simulated upvotes from distinct synthetic residents
+    // Add 3 confirmations from distinct residents
     const simulatedVoters = [
-      `sim_voter_${Date.now()}_1`,
-      `sim_voter_${Date.now()}_2`,
-      `sim_voter_${Date.now()}_3`,
+      `voter_${Date.now()}_1`,
+      `voter_${Date.now()}_2`,
+      `voter_${Date.now()}_3`,
     ];
     target.upvoters.push(...simulatedVoters);
     target.upvotes += 3;
@@ -810,7 +838,7 @@ export const simulateDemoScenario = asyncHandler(async (req: Request, res: Respo
     }
 
     return res.status(200).json(
-      new ApiResponse(200, "Simulated community upvote surge recorded! Upgraded to confirmed.", {
+      new ApiResponse(200, "Community confirmations recorded! Upgraded to confirmed.", {
         incident: target,
       })
     );
@@ -831,7 +859,7 @@ export const simulateDemoScenario = asyncHandler(async (req: Request, res: Respo
     }
 
     target.status = "resolved_verified";
-    target.description = `${target.description}\n\n[RWA Verified Resolution]: Maintenance team completed rectification on site. Verified by Society Security & RWA.`;
+    target.description = `${target.description}\n\n[Maintenance Verified Resolution]: Maintenance team completed rectification on site. Verified by Society Security & RWA.`;
     await target.save();
     queryCache.invalidate();
 
@@ -840,7 +868,7 @@ export const simulateDemoScenario = asyncHandler(async (req: Request, res: Respo
     }
 
     return res.status(200).json(
-      new ApiResponse(200, "Simulated RWA resolution action logged! Health score updated.", {
+      new ApiResponse(200, "Resolution action logged! Safety index updated.", {
         incident: target,
       })
     );
@@ -920,13 +948,13 @@ export const triggerSosEmergency = asyncHandler(async (req: Request, res: Respon
 
   // 1. Create high-priority critical incident
   const incident = new Incident({
-    title: "🚨 SOS EMERGENCY: Resident Beacon Activated",
+    title: "🚨 Urgent Assistance Alert",
     category: "theft_security",
     severity: "critical",
     status: "confirmed",
     description: details
-      ? `[URGENT SOS BEACON]: ${details}`
-      : "[URGENT SOS BEACON]: Resident initiated instantaneous community safety beacon. Immediate physical response requested.",
+      ? `[Urgent Assistance]: ${details}`
+      : `Urgent assistance requested near ${address || "the neighbourhood"}. Security patrol and nearby residents requested to check in.`,
     location: {
       type: "Point",
       coordinates: [lng, lat],
@@ -940,14 +968,14 @@ export const triggerSosEmergency = asyncHandler(async (req: Request, res: Respon
 
   // 2. Also create an official active emergency broadcast
   const broadcast = new Broadcast({
-    title: "🚨 CRITICAL RESIDENT SOS BEACON",
-    message: `Urgent resident panic alert triggered near ${address || "Society Area"}. On-ground security guard patrol and neighbours requested to verify.`,
+    title: "🚨 Urgent Safety Alert",
+    message: `Urgent assistance requested near ${address || "Society Area"}. Security patrol and nearby residents requested to assist.`,
     severity: "critical",
     category: "security",
     ward: "all",
     issuedBy: {
       name: reporterName,
-      role: "Citizen Emergency Beacon",
+      role: "Resident Safety Alert",
     },
     isActive: true,
   });
@@ -962,7 +990,7 @@ export const triggerSosEmergency = asyncHandler(async (req: Request, res: Respon
   }
 
   return res.status(201).json(
-    new ApiResponse(201, "SOS Panic Beacon triggered and broadcasted to entire community!", {
+    new ApiResponse(201, "Urgent alert broadcast to community!", {
       incident,
       broadcast,
     })
@@ -974,5 +1002,53 @@ export const getPerformanceMetrics = asyncHandler(async (_req: Request, res: Res
   const stats = queryCache.getStats();
   return res.status(200).json(
     new ApiResponse(200, "Scale & Query Performance Metrics", stats)
+  );
+});
+
+// PHASE 11: INCIDENT COMMENTS & FIELD TIMELINE UPDATES
+export const addIncidentComment = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { message, author, role } = req.body;
+
+  if (!message || !message.trim()) {
+    throw new ApiError(400, "Comment message cannot be empty");
+  }
+
+  const incident = await Incident.findById(id);
+  if (!incident) {
+    throw new ApiError(404, "Incident not found");
+  }
+
+  const commentItem = {
+    author: author || req.user?.name || "Citizen / Inspector",
+    role: role || (req.user?.role === "admin" ? "Department Officer" : "Resident Complainant"),
+    message: message.trim(),
+    createdAt: new Date(),
+  };
+
+  if (!incident.comments) {
+    incident.comments = [];
+  }
+  incident.comments.push(commentItem);
+  await incident.save();
+
+  queryCache.invalidate();
+
+  const io = req.app.get("io");
+  if (io) {
+    io.emit("incident:updated", { incident });
+  }
+
+  return res.status(200).json(
+    new ApiResponse(200, "Comment added to grievance timeline", {
+      incident,
+      comment: commentItem,
+    })
+  );
+});
+
+export const getAuthorityOffices = asyncHandler(async (_req: Request, res: Response) => {
+  return res.status(200).json(
+    new ApiResponse(200, "Authority jurisdiction offices retrieved", AUTHORITY_REGISTRY)
   );
 });

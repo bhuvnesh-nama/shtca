@@ -31,11 +31,17 @@ class ApiService {
     String? category,
     String? status,
     String? search,
+    String? officeId,
+    String? ward,
   }) async {
     final queryParams = <String, String>{};
     if (category != null && category != 'all') queryParams['category'] = category;
     if (status != null && status != 'all') queryParams['status'] = status;
     if (search != null && search.trim().isNotEmpty) queryParams['search'] = search.trim();
+    if (officeId != null && officeId != 'all' && officeId != 'AUTH-APEX-01') {
+      queryParams['officeId'] = officeId;
+    }
+    if (ward != null && ward != 'all') queryParams['ward'] = ward;
 
     final uri = Uri.parse('$baseUrl/incidents').replace(queryParameters: queryParams);
 
@@ -62,7 +68,7 @@ class ApiService {
     }
   }
 
-  // Fetch Neighbourhood Health Score (Bonus Twist 2)
+  // Fetch Neighbourhood Safety & Health Score
   static Future<HealthScoreData> fetchHealthScore() async {
     final uri = Uri.parse('$baseUrl/incidents/health-score');
     final response = await http.get(uri).timeout(const Duration(seconds: 10));
@@ -75,7 +81,7 @@ class ApiService {
     }
   }
 
-  // Check Nearby Duplicates for Auto-Clustering (Bonus Twist 1)
+  // Check Nearby Duplicates for Grouping
   static Future<Map<String, dynamic>> checkDuplicate({
     required String category,
     required double lat,
@@ -99,7 +105,7 @@ class ApiService {
     return {'hasNearbyDuplicate': false};
   }
 
-  // Submit Citizen Report with Auto-Clustering
+  // Submit Citizen Municipal Grievance Report
   static Future<Map<String, dynamic>> submitReport({
     required String category,
     required String title,
@@ -107,6 +113,10 @@ class ApiService {
     required double latitude,
     required double longitude,
     String? address,
+    String? ward,
+    String? pincode,
+    String? landmark,
+    String? complainantPhone,
     List<String>? media,
     bool forceNew = false,
   }) async {
@@ -118,6 +128,10 @@ class ApiService {
       'latitude': latitude,
       'longitude': longitude,
       'address': address ?? '',
+      'ward': ward ?? 'Ward 42 - Preet Vihar / Anand Vihar',
+      if (pincode != null) 'pincode': pincode,
+      if (landmark != null) 'landmark': landmark,
+      if (complainantPhone != null) 'complainantPhone': complainantPhone,
       'media': media ?? [],
       'forceNew': forceNew,
     });
@@ -164,20 +178,32 @@ class ApiService {
     }
   }
 
-  // Update Status by Admin / RWA
+  // Update Status and Action Taken Report (ATR) by Municipal Authority
   static Future<void> updateIncidentStatus(
     String id,
     String status, {
     String? resolutionNote,
+    String? complaintRef,
+    String? department,
+    Map<String, dynamic>? assignedOfficer,
+    Map<String, dynamic>? actionTakenReport,
+    List<String>? resolutionMedia,
   }) async {
     final uri = Uri.parse('$baseUrl/incidents/$id/status');
+    final body = jsonEncode({
+      'status': status,
+      if (resolutionNote != null) 'resolutionNote': resolutionNote,
+      if (complaintRef != null) 'complaintRef': complaintRef,
+      if (department != null) 'department': department,
+      if (assignedOfficer != null) 'assignedOfficer': assignedOfficer,
+      if (actionTakenReport != null) 'actionTakenReport': actionTakenReport,
+      if (resolutionMedia != null) 'resolutionMedia': resolutionMedia,
+    });
+
     final response = await http.patch(
       uri,
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'status': status,
-        if (resolutionNote != null) 'resolutionNote': resolutionNote,
-      }),
+      body: body,
     ).timeout(const Duration(seconds: 10));
 
     if (response.statusCode != 200) {
@@ -226,7 +252,32 @@ class ApiService {
     }
   }
 
-  // Demo Simulation Action (Feature 65)
+  // Add Ground Log / Citizen Comment to Grievance Timeline
+  static Future<Map<String, dynamic>> addComment(
+    String incidentId,
+    String message, {
+    String? author,
+    String? role,
+  }) async {
+    final uri = Uri.parse('$baseUrl/incidents/$incidentId/comments');
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'message': message,
+        'author': author ?? 'Mobile Citizen',
+        'role': role ?? 'Resident Complainant',
+      }),
+    ).timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to post comment to grievance');
+    }
+  }
+
+  // Scenario Simulation Action
   static Future<String> simulateScenario(String scenario) async {
     final uri = Uri.parse('$baseUrl/incidents/simulate');
     final response = await http.post(
@@ -289,4 +340,14 @@ class ApiService {
   // Phase 10: Fetch Scale & Query Performance Diagnostics
   static Future<Map<String, dynamic>> fetchPerformanceMetrics() async {
     final uri = Uri.parse('$baseUrl/incidents/performance');
-    fi
+    final response = await http.get(uri).timeout(const Duration(seconds: 8));
+
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body);
+      return json['data'] ?? {};
+    } else {
+      return {};
+    }
+  }
+}
+

@@ -27,7 +27,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Spinner } from "@/components/ui/spinner";
-import { Shield, Mail, Lock, Sparkles, ArrowRight } from "lucide-react";
+import { Mail, Lock, Building2, ArrowRight } from "lucide-react";
 
 interface AuthErrorPayload {
   message?: string;
@@ -67,13 +67,6 @@ function Login() {
     }
   }
 
-  // Quick Demo fill for easy testing
-  const handleQuickDemoFill = () => {
-    form.setValue("email", "resident@society.org");
-    form.setValue("password", "resident123");
-    toast.info("Demo credentials loaded into form.");
-  };
-
   return (
     <div className="min-h-screen flex flex-col justify-center items-center p-4 bg-muted/20 relative">
       {/* Background ambient glow matching theme */}
@@ -82,25 +75,36 @@ function Login() {
       <div className="w-full max-w-md relative z-10 space-y-6">
         {/* Brand header */}
         <div className="flex flex-col items-center text-center space-y-2">
+          {/* Top Indian tricolor bar */}
+          <div className="flex h-1.5 w-24 rounded-full overflow-hidden shadow-xs">
+            <div className="flex-1 bg-[#FF9933]" />
+            <div className="flex-1 bg-white" />
+            <div className="flex-1 bg-[#138808]" />
+          </div>
           <Link to="/" className="flex items-center gap-2 group">
-            <div className="flex size-11 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md group-hover:scale-105 transition-transform">
-              <Shield className="size-6" />
+            <div className="flex size-11 items-center justify-center rounded-xl bg-[#003366] text-white shadow-md group-hover:scale-105 transition-transform">
+              <Building2 className="size-6 text-amber-400" />
             </div>
-            <span className="font-bold text-2xl tracking-tight text-foreground">
-              Hyper<span className="text-blue-600">Net</span>
-            </span>
+            <div className="text-left">
+              <span className="font-bold text-xl tracking-tight text-foreground block leading-tight">
+                CivicDesk <span className="text-[#003366] dark:text-blue-400">Portal</span>
+              </span>
+              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">
+                Citizen Grievance Redressal
+              </span>
+            </div>
           </Link>
           <p className="text-xs text-muted-foreground max-w-xs font-medium">
-            Hyperlocal Safety, Hazards & Community Corroboration Network
+            Central Public Grievance Registration & Redressal System
           </p>
         </div>
 
         {/* Card */}
         <Card className="border-border/80 shadow-md">
           <CardHeader className="text-center pb-4">
-            <CardTitle className="text-xl font-bold">Resident Sign In</CardTitle>
+            <CardTitle className="text-xl font-bold">Citizen Sign In</CardTitle>
             <CardDescription className="text-xs">
-              Access your local neighbourhood feed, vote on issues, and manage reports
+              Sign in to register public grievances, upvote issues, and track Action Taken Reports (ATR)
             </CardDescription>
           </CardHeader>
 
@@ -119,7 +123,7 @@ function Login() {
                           <Input
                             {...field}
                             type="email"
-                            placeholder="resident@society.org"
+                            placeholder="citizen@gmail.com"
                             autoComplete="email"
                             className="pl-9 text-sm"
                           />
@@ -163,46 +167,42 @@ function Login() {
 
                 <Button
                   type="submit"
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold h-10 shadow-sm"
+                  className="w-full bg-[#003366] hover:bg-[#002244] text-white font-semibold h-10 shadow-sm text-xs sm:text-sm"
                   disabled={loginLoading}
                 >
                   {loginLoading ? (
                     <>
                       <Spinner className="mr-2" />
-                      Signing in...
+                      Signing In...
                     </>
                   ) : (
-                    <span className="flex items-center gap-1.5">
-                      Sign In to Neighbourhood <ArrowRight className="size-4" />
+                    <span className="flex items-center justify-center gap-1.5">
+                      Sign In as Citizen <ArrowRight className="size-4" />
                     </span>
                   )}
                 </Button>
               </form>
             </Form>
-
-            {/* Demo autofill shortcut */}
-            <div className="pt-2 border-t">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleQuickDemoFill}
-                className="w-full text-xs text-muted-foreground hover:text-foreground border-dashed"
-              >
-                <Sparkles className="size-3.5 mr-1.5 text-amber-500" />
-                Fill sample test credentials
-              </Button>
-            </div>
           </CardContent>
 
-          <CardFooter className="justify-center border-t py-4 text-center text-xs text-muted-foreground bg-muted/10">
-            New resident in the area?{" "}
-            <Link
-              to="/register"
-              className="ml-1 font-semibold text-blue-600 dark:text-blue-400 hover:underline"
-            >
-              Register your account
-            </Link>
+          <CardFooter className="flex flex-col gap-2 border-t py-3.5 text-center text-xs text-muted-foreground bg-muted/10">
+            <div>
+              New citizen user?{" "}
+              <Link
+                to="/register"
+                className="ml-1 font-semibold text-[#003366] dark:text-blue-400 hover:underline"
+              >
+                Register Citizen Account
+              </Link>
+            </div>
+            <div className="pt-2 border-t border-border/60 w-full">
+              <Link
+                to="/admin/login"
+                className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1"
+              >
+                Department Authority or Officer? Authority Sign In →
+              </Link>
+            </div>
           </CardFooter>
         </Card>
 

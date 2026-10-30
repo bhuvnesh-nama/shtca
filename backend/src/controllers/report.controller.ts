@@ -5,6 +5,7 @@ import ApiError from "../utils/ApiError";
 import Report from "../models/report.model";
 import Incident from "../models/incident.model";
 import { queryCache } from "../utils/cache";
+import { resolveNearestAuthority } from "../utils/authorityRouting";
 
 export const checkNearbyDuplicates = asyncHandler(async (req: Request, res: Response) => {
   const { category, lat, lng, radius } = req.query;
@@ -49,8 +50,36 @@ export const checkNearbyDuplicates = asyncHandler(async (req: Request, res: Resp
   );
 });
 
+const DEPARTMENT_MAP: Record<string, string> = {
+  power_cut: "Power Distribution & Street Lighting Discom",
+  water_issue: "Water Works & Sewerage Distribution Board",
+  road_hazard: "Public Works & Road Infrastructure (PWD)",
+  sanitation: "Solid Waste & Public Sanitation Cell",
+  stray_animals: "Veterinary & Animal Welfare Unit",
+  theft_security: "Resident Vigilance & Estate Security Cell",
+  utility_disruption: "Public Utilities & Maintenance Services",
+  water_drainage: "Stormwater Drainage & Flood Control",
+  safety_concern: "Civil Defense & Emergency Safety",
+  other: "Central Grievance Redressal Cell",
+};
+
 export const submitReport = asyncHandler(async (req: Request, res: Response) => {
-  const { category, title, description, latitude, longitude, address, media, forceNew } = req.body;
+  const {
+    category,
+    title,
+    description,
+    latitude,
+    longitude,
+    address,
+    media,
+    forceNew,
+    department,
+    ward,
+    pincode,
+    landmark,
+    reporterName,
+    complainantPhone,
+  } = req.body;
 
   if (!category || !title || !description) {
     throw new ApiError(400, "Category, title, and description are required");
@@ -64,12 +93,22 @@ export const submitReport = asyncHandler(async (req: Request, res: Response) => 
   }
 
   const mediaUrls: string[] = Array.isArray(media) ? media : [];
+  const resolvedDept = department || DEPARTMENT_MAP[category] || "सामान्य नागरिक शिकायत प्रकोष्ठ (General Civic Grievance Cell)";
+  const resolvedWard = ward || "Ward 42 - Anand Vihar Zone";
+  const resolvedPincode = pincode || "110092";
+  const resolvedLandmark = landmark || "";
+  const resolvedReporter = reporterName || req.user?.name || "Resident Complainant";
 
   // 1. Create Report
   const report = new Report({
     user: req.user?._id,
-    reporterName: req.user?.name || "Anonymous Resident",
+    reporterName: resolvedReporter,
+    complainantPhone: complainantPhone || "",
     category,
+    department: resolvedDept,
+    ward: resolvedWard,
+    pincode: resolvedPincode,
+    landmark: resolvedLandmark,
     title,
     description,
     location: {
@@ -83,7 +122,7 @@ export const submitReport = asyncHandler(async (req: Request, res: Response) => 
 
   await report.save();
 
-  // 2. Auto-cluster: check for nearby open incident of same category within 200m (unless user explicitly forced new)
+  // 2. Link with nearby open incident of same category within 200m (unless user explicitly forced new)
   let incident = null;
   if (!forceNew) {
     incident = await Incident.findOne({
@@ -104,7 +143,7 @@ export const submitReport = asyncHandler(async (req: Request, res: Response) => 
   let isNewIncident = false;
 
   if (incident) {
-    // Auto-cluster with existing incident
+    // Link with existing incident
     incident.reports.push(report._id as any);
     incident.reportCount = incident.reports.length;
     incident.upvotes += 1;
@@ -119,9 +158,17 @@ export const submitReport = asyncHandler(async (req: Request, res: Response) => 
   } else {
     // Create new Incident
     isNewIncident = true;
+    const generatedRef = "MCD-" + new Date().getFullYear() + "-" + Math.floor(10000 + Math.random() * 90000);
+    const assignedAuth = resolveNearestAuthority(lat, lng, category, "medium", title, description);
+
     incident = new Incident({
       title,
       category,
+      department: resolvedDept,
+      ward: resolvedWard,
+      pincode: resolvedPincode,
+      landmark: resolvedLandmark,
+      complaintRef: generatedRef,
       description,
       status: "reported",
       severity: "medium",
@@ -131,6 +178,15 @@ export const submitReport = asyncHandler(async (req: Request, res: Response) => 
       },
       address: address || "",
       media: mediaUrls,
+      assignedAuthority: assignedAuth,
+      comments: [
+        {
+          author: resolvedReporter,
+          role: "Resident Complainant",
+          message: "Grievance lodged via citizen portal. Nearest authority dispatched automatically.",
+          createdAt: new Date(),
+        },
+      ],
       reports: [report._id],
       reportCount: 1,
       upvotes: 1,

@@ -12,7 +12,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ShieldAlert, AlertTriangle, Loader2, MapPin, Radio } from "lucide-react";
 import { incidentService } from "@/services/incidentService";
-import { useLanguage } from "@/context/LanguageContext";
 import { toast } from "sonner";
 
 interface SosEmergencyDialogProps {
@@ -26,28 +25,39 @@ export const SosEmergencyDialog: React.FC<SosEmergencyDialogProps> = ({
   onOpenChange,
   userLocation,
 }) => {
-  const { language } = useLanguage();
-  const [address, setAddress] = useState("Society Central Compound / Resident Block");
+  const [address, setAddress] = useState("Main Road Crossing / Civic Center Area");
   const [details, setDetails] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleTrigger = async () => {
     try {
       setIsSubmitting(true);
-      const lat = userLocation ? userLocation[0] : 28.6304;
-      const lng = userLocation ? userLocation[1] : 77.2177;
+      let lat = userLocation ? userLocation[0] : 0;
+      let lng = userLocation ? userLocation[1] : 0;
+
+      // If userLocation not yet determined, try rapid browser position
+      if (!lat && !lng && navigator.geolocation) {
+        try {
+          const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 4000, enableHighAccuracy: true });
+          });
+          lat = pos.coords.latitude;
+          lng = pos.coords.longitude;
+        } catch {
+          lat = 20.5937;
+          lng = 78.9629;
+        }
+      }
 
       await incidentService.triggerSos({
-        latitude: lat,
-        longitude: lng,
+        latitude: lat || 20.5937,
+        longitude: lng || 78.9629,
         address,
         details: details.trim() || undefined,
       });
 
       toast.error(
-        language === "hi"
-          ? "🚨 आपातकालीन एसओएस सक्रिय! सभी पड़ोसियों एवं गार्ड को सूचना भेज दी गई है।"
-          : "🚨 EMERGENCY SOS ACTIVE! Alert broadcasted to security patrol and neighbours."
+        "🚨 EMERGENCY SOS BROADCASTED! Immediate priority alert sent to local authorities & emergency teams."
       );
       onOpenChange(false);
       setDetails("");
@@ -68,12 +78,10 @@ export const SosEmergencyDialog: React.FC<SosEmergencyDialogProps> = ({
             </div>
             <div>
               <DialogTitle className="text-lg font-bold text-rose-600">
-                {language === "hi" ? "आपातकालीन एसओएस अलर्ट" : "Emergency SOS Panic Beacon"}
+                Civic Emergency SOS Alert
               </DialogTitle>
               <DialogDescription className="text-xs text-muted-foreground">
-                {language === "hi"
-                  ? "तत्काल पड़ोसियों, आरडब्ल्यूए और सुरक्षा गार्ड को सूचित करें"
-                  : "Instant high-priority community & security guard alert"}
+                High-priority life safety and civic emergency response beacon
               </DialogDescription>
             </div>
           </div>
@@ -83,48 +91,38 @@ export const SosEmergencyDialog: React.FC<SosEmergencyDialogProps> = ({
           <div className="rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/80 p-3 text-xs text-rose-900 dark:text-rose-200 flex items-start gap-2.5">
             <AlertTriangle className="size-4 shrink-0 text-rose-600 mt-0.5" />
             <p className="leading-relaxed">
-              {language === "hi"
-                ? "यह बटन तुरंत सोसायटी गार्ड और सभी सक्रिय निवासियों की स्क्रीन पर आपातकालीन लाल चेतावनी प्रसारित करेगा।"
-                : "This triggers an immediate critical priority red banner across all active resident and security screens in your society."}
+              This triggers a high-priority emergency broadcast across all local response units and active civic monitoring terminals. Use only for genuine emergencies (gas leaks, live wire hazards, structural collapse).
             </p>
           </div>
 
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold flex items-center gap-1.5">
               <MapPin className="size-3.5 text-rose-600" />
-              {language === "hi" ? "स्थान विवरण" : "Your Exact Location / Flat No."}
+              Incident Location
             </Label>
             <Input
               value={address}
               onChange={(e) => setAddress(e.target.value)}
-              placeholder="e.g. Tower B, Flat 304 or Basement Parking"
+              placeholder="e.g. Near Community Center, Main Market Crossing"
               className="text-xs h-9"
             />
           </div>
 
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold">
-              {language === "hi" ? "समस्या का संक्षिप्त विवरण (वैकल्पिक)" : "Emergency Details (Optional)"}
+              Emergency Details (Optional)
             </Label>
             <Textarea
               value={details}
               onChange={(e) => setDetails(e.target.value)}
-              placeholder={
-                language === "hi"
-                  ? "उदा. लिफ्ट फंस गई है, आग का धुआं दिख रहा है, संदिग्ध व्यक्ति..."
-                  : "e.g. Elevator stuck, smoke detected, urgent medical/security help..."
-              }
+              placeholder="e.g. High voltage transformer sparked and fallen wire on road..."
               className="text-xs min-h-[70px] resize-none"
             />
           </div>
 
           <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
             <Radio className="size-3 text-emerald-500 animate-pulse" />
-            <span>
-              {language === "hi"
-                ? "जीपीएस कोऑर्डिनेट्स अपने आप जुड़े हैं"
-                : "Live GPS coordinates automatically attached"}
-            </span>
+            <span>Live GPS coordinates automatically attached</span>
           </div>
         </div>
 
@@ -136,7 +134,7 @@ export const SosEmergencyDialog: React.FC<SosEmergencyDialogProps> = ({
             disabled={isSubmitting}
             className="text-xs"
           >
-            {language === "hi" ? "रद्द करें" : "Cancel"}
+            Cancel
           </Button>
 
           <Button
@@ -150,7 +148,7 @@ export const SosEmergencyDialog: React.FC<SosEmergencyDialogProps> = ({
             ) : (
               <ShieldAlert className="size-3.5" />
             )}
-            {language === "hi" ? "एसओएस प्रसारित करें" : "BROADCAST SOS ALERT"}
+            BROADCAST SOS ALERT
           </Button>
         </div>
       </DialogContent>

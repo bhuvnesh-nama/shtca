@@ -25,10 +25,6 @@ connectDB()
     });
 
 process.on("unhandledRejection", (err: any) => {
-    console.error("UNHANDLED REJECTION! 💥 Shutting down...");
-    console.error(err.name, err.message);
-    console.error(err.stack);
-    server.close(() => {
-        process.exit(1);
-    });
+    console.error("UNHANDLED REJECTION! ⚠️", err?.name, err?.message);
+    if (err?.stack) console.error(err.stack);
 });

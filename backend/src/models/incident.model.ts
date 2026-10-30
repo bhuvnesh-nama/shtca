@@ -34,6 +34,22 @@ export interface IIncident extends Document {
   resolutionMedia?: string[];
   resolutionNote?: string;
   complaintRef?: string;
+  department?: string;
+  ward?: string;
+  pincode?: string;
+  landmark?: string;
+  assignedOfficer?: {
+    name: string;
+    designation: string;
+    phone?: string;
+    assignedAt: Date;
+  };
+  actionTakenReport?: {
+    actionSummary: string;
+    resolvedBy: string;
+    completionDate?: Date;
+    afterMedia?: string[];
+  };
   resolvedAt?: Date;
   reopenedAt?: Date;
   reopenReason?: string;
@@ -47,6 +63,22 @@ export interface IIncident extends Document {
   ward?: string;
   flagsCount: number;
   flags: Array<{ identifier: string; reason: string; createdAt: Date }>;
+  assignedAuthority?: {
+    officeId?: string;
+    tier: "apex_central" | "zonal_ward" | "local_society";
+    name: string;
+    office: string;
+    jurisdictionType: "Arterial Infrastructure" | "Zonal Sector Public Works" | "Housing Society & Colony";
+    distanceKm?: number;
+    routingReason: string;
+    contactNumber?: string;
+  };
+  comments?: Array<{
+    author: string;
+    role: string;
+    message: string;
+    createdAt: Date;
+  }>;
   reports: Types.ObjectId[];
   reportCount: number;
   upvotes: number;
@@ -139,6 +171,33 @@ const incidentSchema = new Schema<IIncident>(
     complaintRef: {
       type: String,
       trim: true,
+      index: true,
+    },
+    department: {
+      type: String,
+      trim: true,
+      default: "Municipal Public Works Department",
+    },
+    pincode: {
+      type: String,
+      trim: true,
+      default: "110092",
+    },
+    landmark: {
+      type: String,
+      trim: true,
+    },
+    assignedOfficer: {
+      name: { type: String, trim: true },
+      designation: { type: String, trim: true },
+      phone: { type: String, trim: true },
+      assignedAt: { type: Date, default: Date.now },
+    },
+    actionTakenReport: {
+      actionSummary: { type: String, trim: true },
+      resolvedBy: { type: String, trim: true },
+      completionDate: { type: Date },
+      afterMedia: [{ type: String }],
     },
     resolvedAt: {
       type: Date,
@@ -152,7 +211,7 @@ const incidentSchema = new Schema<IIncident>(
     },
     inspectedBy: {
       name: { type: String, trim: true },
-      role: { type: String, trim: true, default: "RWA Field Marshal" },
+      role: { type: String, trim: true, default: "Municipal Field Officer / Junior Engineer" },
       inspectedAt: { type: Date, default: Date.now },
       notes: { type: String, trim: true },
     },
@@ -163,7 +222,7 @@ const incidentSchema = new Schema<IIncident>(
     ward: {
       type: String,
       trim: true,
-      default: "Greenwood Society",
+      default: "Ward 42 - Anand Vihar Zone",
     },
     flagsCount: {
       type: Number,
@@ -173,6 +232,24 @@ const incidentSchema = new Schema<IIncident>(
       {
         identifier: { type: String, required: true },
         reason: { type: String, required: true },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
+    assignedAuthority: {
+      officeId: { type: String, trim: true },
+      tier: { type: String, enum: ["apex_central", "zonal_ward", "local_society"] },
+      name: { type: String, trim: true },
+      office: { type: String, trim: true },
+      jurisdictionType: { type: String, trim: true },
+      distanceKm: { type: Number },
+      routingReason: { type: String, trim: true },
+      contactNumber: { type: String, trim: true },
+    },
+    comments: [
+      {
+        author: { type: String, trim: true, required: true },
+        role: { type: String, trim: true, default: "Resident" },
+        message: { type: String, trim: true, required: true },
         createdAt: { type: Date, default: Date.now },
       },
     ],

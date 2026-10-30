@@ -1,16 +1,14 @@
 import { useSelector } from "react-redux";
-import { Navigate } from "react-router-dom";
-import { Outlet } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
 import type { RootState } from "../app/store";
 import Loading from "@/components/Loading";
-import Header from "@/components/Header";
 
 export default function GuestRoute() {
   const { isLoggedIn, isEmailVerified, loading } = useSelector(
-      (state: RootState) => state.auth
-    );
+    (state: RootState) => state.auth
+  );
 
-   if (loading) {
+  if (loading) {
     return (
       <div className="h-[92vh] flex items-center justify-center bg-gray-50">
         <Loading />
@@ -26,8 +24,5 @@ export default function GuestRoute() {
     return <Navigate to="/verify-email" replace />;
   }
 
-  return <>
-  <Header></Header>
-  {<Outlet />}
-  </>;
+  return <Outlet />;
 }

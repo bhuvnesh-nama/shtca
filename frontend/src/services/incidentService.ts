@@ -25,6 +25,12 @@ export interface SubmitReportPayload {
   latitude: number;
   longitude: number;
   address?: string;
+  department?: string;
+  ward?: string;
+  pincode?: string;
+  landmark?: string;
+  reporterName?: string;
+  complainantPhone?: string;
   media?: string[];
   forceNew?: boolean;
 }
@@ -78,13 +84,19 @@ export const incidentService = {
     status: string,
     resolutionNote?: string,
     resolutionMedia?: string[],
-    complaintRef?: string
+    complaintRef?: string,
+    assignedOfficer?: { name: string; designation: string; phone?: string },
+    department?: string,
+    actionTakenReport?: any
   ) {
     const response = await api.patch(`/incidents/${id}/status`, {
       status,
       resolutionNote,
       resolutionMedia,
       complaintRef,
+      assignedOfficer,
+      department,
+      actionTakenReport,
     });
     return response.data;
   },
@@ -194,5 +206,10 @@ export const incidentService = {
   async getPerformanceMetrics(): Promise<PerformanceMetrics> {
     const response = await api.get("/incidents/performance");
     return response.data?.data;
+  },
+
+  async addComment(id: string, payload: { message: string; author?: string; role?: string }) {
+    const response = await api.post(`/incidents/${id}/comments`, payload);
+    return response.data;
   },
 };

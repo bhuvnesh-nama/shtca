@@ -26,7 +26,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Spinner } from "@/components/ui/spinner";
-import { Shield, User, Mail, Lock, ArrowRight } from "lucide-react";
+import { Building2, User, Mail, Lock, Phone, MapPin, ArrowRight, ShieldCheck } from "lucide-react";
 
 interface RegisterErrorPayload {
   response?: {
@@ -46,6 +46,8 @@ function Register() {
     defaultValues: {
       name: "",
       email: "",
+      phone: "",
+      ward: "Ward 42 - Preet Vihar",
       password: "",
     },
   });
@@ -55,7 +57,7 @@ function Register() {
     try {
       const response = await api.post("/auth/register", values);
       toast.success(
-        response.data?.message || "Account registered! You can now sign in."
+        response.data?.message || "Citizen account registered successfully! Please sign in."
       );
       navigate("/login");
     } catch (error: unknown) {
@@ -63,7 +65,7 @@ function Register() {
       const errorMessage =
         err?.response?.data?.message ||
         err?.message ||
-        "Registration failed. Please check details.";
+        "Registration failed. Please check your information.";
       toast.error(errorMessage);
     } finally {
       setRegisterLoading(false);
@@ -74,47 +76,60 @@ function Register() {
     <div className="min-h-screen flex flex-col justify-center items-center p-4 bg-muted/20 relative">
       <div className="absolute top-1/4 size-96 rounded-full bg-blue-500/10 blur-3xl pointer-events-none" />
 
-      <div className="w-full max-w-md relative z-10 space-y-6">
+      <div className="w-full max-w-lg relative z-10 space-y-5">
         {/* Brand header */}
         <div className="flex flex-col items-center text-center space-y-2">
+          {/* Top Indian tricolor bar */}
+          <div className="flex h-1.5 w-24 rounded-full overflow-hidden shadow-xs">
+            <div className="flex-1 bg-[#FF9933]" />
+            <div className="flex-1 bg-white" />
+            <div className="flex-1 bg-[#138808]" />
+          </div>
+
           <Link to="/" className="flex items-center gap-2 group">
-            <div className="flex size-11 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md group-hover:scale-105 transition-transform">
-              <Shield className="size-6" />
+            <div className="flex size-11 items-center justify-center rounded-xl bg-[#003366] text-white shadow-md group-hover:scale-105 transition-transform">
+              <Building2 className="size-6 text-amber-400" />
             </div>
-            <span className="font-bold text-2xl tracking-tight text-foreground">
-              Hyper<span className="text-blue-600">Net</span>
-            </span>
+            <div className="text-left">
+              <span className="font-extrabold text-xl tracking-tight text-[#003366] dark:text-blue-400 block leading-tight">
+                CivicDesk <span className="text-xs font-bold px-1.5 py-0.5 rounded-sm bg-blue-100 dark:bg-blue-950 text-[#003366] dark:text-blue-200 uppercase tracking-wider border border-blue-300 dark:border-blue-800 ml-1">Citizen</span>
+              </span>
+              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">
+                Public Grievance Redressal Portal
+              </span>
+            </div>
           </Link>
-          <p className="text-xs text-muted-foreground max-w-xs font-medium">
-            Hyperlocal Safety, Hazards & Community Corroboration Network
+          <p className="text-xs text-muted-foreground max-w-sm font-medium">
+            Citizen Grievance Registration, Status Tracking & Zone Redressal
           </p>
         </div>
 
         {/* Card */}
         <Card className="border-border/80 shadow-md">
-          <CardHeader className="text-center pb-4">
-            <CardTitle className="text-xl font-bold">Create Resident Account</CardTitle>
+          <CardHeader className="text-center pb-3">
+            <CardTitle className="text-lg sm:text-xl font-bold">Citizen Registration</CardTitle>
             <CardDescription className="text-xs">
-              Join your apartment or neighbourhood network to report and track issues
+              Create your citizen profile to lodge and track civic grievances
             </CardDescription>
           </CardHeader>
 
           <CardContent>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3.5">
+                {/* Full Name */}
                 <FormField
                   control={form.control}
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs font-semibold">Full Name / Society Unit</FormLabel>
+                      <FormLabel className="text-xs font-semibold">Full Name <span className="text-rose-500">*</span></FormLabel>
                       <FormControl>
                         <div className="relative">
                           <User className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
                           <Input
                             {...field}
                             type="text"
-                            placeholder="e.g. Vikram Rao (Flat 402)"
+                            placeholder="e.g. Rajesh Kumar"
                             autoComplete="name"
                             className="pl-9 text-sm"
                           />
@@ -125,22 +140,76 @@ function Register() {
                   )}
                 />
 
+                {/* Mobile Number & Email in 2 columns on larger screens */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <FormField
+                    control={form.control}
+                    name="phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs font-semibold">Mobile Number</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Phone className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
+                            <Input
+                              {...field}
+                              type="tel"
+                              maxLength={10}
+                              placeholder="9876543210"
+                              autoComplete="tel"
+                              className="pl-9 text-sm font-mono"
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs font-semibold">Email Address <span className="text-rose-500">*</span></FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Mail className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
+                            <Input
+                              {...field}
+                              type="email"
+                              placeholder="citizen@gmail.com"
+                              autoComplete="email"
+                              className="pl-9 text-sm"
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Residential Ward */}
                 <FormField
                   control={form.control}
-                  name="email"
+                  name="ward"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs font-semibold">Email Address</FormLabel>
+                      <FormLabel className="text-xs font-semibold">Zone / Residential Area</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <Mail className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
-                          <Input
+                          <MapPin className="absolute left-3 top-2.5 size-4 text-muted-foreground pointer-events-none" />
+                          <select
                             {...field}
-                            type="email"
-                            placeholder="vikram@society.org"
-                            autoComplete="email"
-                            className="pl-9 text-sm"
-                          />
+                            className="w-full h-9 pl-9 pr-3 rounded-md border border-input bg-background text-xs text-foreground focus:outline-hidden"
+                          >
+                            <option value="Ward 42 - Preet Vihar">Zone 1 - East (Preet Vihar)</option>
+                            <option value="Ward 18 - Connaught Place">Zone 2 - Central (Connaught Place)</option>
+                            <option value="Ward 24 - Mayur Vihar">Zone 3 - East (Mayur Vihar)</option>
+                            <option value="Ward 35 - Karol Bagh">Zone 4 - Central (Karol Bagh)</option>
+                            <option value="Ward 14 - Anand Vihar">Zone 5 - East (Anand Vihar)</option>
+                          </select>
                         </div>
                       </FormControl>
                       <FormMessage />
@@ -148,12 +217,13 @@ function Register() {
                   )}
                 />
 
+                {/* Password */}
                 <FormField
                   control={form.control}
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs font-semibold">Password (min 6 characters)</FormLabel>
+                      <FormLabel className="text-xs font-semibold">Password (minimum 6 characters) <span className="text-rose-500">*</span></FormLabel>
                       <FormControl>
                         <div className="relative">
                           <Lock className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
@@ -171,19 +241,27 @@ function Register() {
                   )}
                 />
 
+                {/* Security & Privacy Notice */}
+                <div className="p-2.5 rounded-lg bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-900/60 text-[11px] text-blue-900 dark:text-blue-300 flex items-start gap-2">
+                  <ShieldCheck className="size-4 text-[#003366] dark:text-blue-400 shrink-0 mt-0.5" />
+                  <span>
+                    <strong>Official Civic Portal:</strong> Your contact details are strictly used for grievance tracking updates and field officer inspection.
+                  </span>
+                </div>
+
                 <Button
                   type="submit"
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold h-10 shadow-sm"
+                  className="w-full bg-[#003366] hover:bg-[#002244] text-white font-semibold h-10 shadow-sm text-xs sm:text-sm"
                   disabled={registerLoading}
                 >
                   {registerLoading ? (
                     <>
                       <Spinner className="mr-2" />
-                      Creating account...
+                      Registering Account...
                     </>
                   ) : (
-                    <span className="flex items-center gap-1.5">
-                      Create Resident Account <ArrowRight className="size-4" />
+                    <span className="flex items-center justify-center gap-1.5">
+                      Register Citizen Account <ArrowRight className="size-4" />
                     </span>
                   )}
                 </Button>
@@ -191,13 +269,13 @@ function Register() {
             </Form>
           </CardContent>
 
-          <CardFooter className="justify-center border-t py-4 text-center text-xs text-muted-foreground bg-muted/10">
-            Already registered?{" "}
+          <CardFooter className="justify-center border-t py-3.5 text-center text-xs text-muted-foreground bg-muted/10">
+            Already have an account?{" "}
             <Link
               to="/login"
-              className="ml-1 font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+              className="ml-1 font-semibold text-[#003366] dark:text-blue-400 hover:underline"
             >
-              Sign in to your account
+              Sign In
             </Link>
           </CardFooter>
         </Card>
@@ -207,7 +285,7 @@ function Register() {
             to="/"
             className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-4"
           >
-            ← Return to public incident map
+            ← Return to Public Citizen Portal
           </Link>
         </div>
       </div>

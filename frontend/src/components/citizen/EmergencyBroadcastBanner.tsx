@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import type { BroadcastItem } from "@/types/incident";
 import { incidentService } from "@/services/incidentService";
-import { useLanguage } from "@/context/LanguageContext";
 import { AlertTriangle, Info, X, Radio, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { io } from "socket.io-client";
@@ -13,7 +12,6 @@ interface EmergencyBroadcastBannerProps {
 export const EmergencyBroadcastBanner: React.FC<EmergencyBroadcastBannerProps> = ({ ward = "all" }) => {
   const [broadcasts, setBroadcasts] = useState<BroadcastItem[]>([]);
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => new Set());
-  const { language } = useLanguage();
 
   useEffect(() => {
     // Fetch active broadcasts
@@ -91,24 +89,16 @@ export const EmergencyBroadcastBanner: React.FC<EmergencyBroadcastBannerProps> =
                 <div className="flex flex-wrap items-center gap-2 mb-1">
                   <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${badgeClass}`}>
                     {isCritical
-                      ? language === "hi"
-                        ? "अति आवश्यक / एसओएस"
-                        : "CRITICAL ALERT"
+                      ? "CRITICAL ALERT"
                       : isWarning
-                      ? language === "hi"
-                        ? "सतर्कता सूचना"
-                        : "OFFICIAL ADVISORY"
-                      : language === "hi"
-                      ? "सार्वजनिक नोटिस"
-                      : "SOCIETY NOTICE"}
+                      ? "OFFICIAL ADVISORY"
+                      : "CIVIC NOTICE"}
                   </span>
 
                   <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
                     <Radio className="size-3 text-emerald-500 animate-pulse" />
                     {broadcast.ward === "all"
-                      ? language === "hi"
-                        ? "सभी वार्ड व सोसायटियां"
-                        : "All Pilot Wards"
+                      ? "All Zones & Wards"
                       : broadcast.ward}
                   </span>
 
@@ -126,7 +116,7 @@ export const EmergencyBroadcastBanner: React.FC<EmergencyBroadcastBannerProps> =
 
                 <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground font-medium">
                   <span>
-                    {language === "hi" ? "जारीकर्ता: " : "Issued by: "}
+                    Issued by:{" "}
                     <strong className="text-foreground">{broadcast.issuedBy?.name}</strong> (
                     {broadcast.issuedBy?.role})
                   </span>

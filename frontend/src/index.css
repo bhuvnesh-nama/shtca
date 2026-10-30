@@ -119,3 +119,13 @@
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 }
+
+/* Ensure Radix UI Modals, Dialogs, Drawers & Popovers stay strictly above Leaflet map panes and controls */
+[data-slot="dialog-overlay"],
+[data-slot="dialog-content"],
+[data-slot="alert-dialog-overlay"],
+[data-slot="alert-dialog-content"],
+[data-slot="sheet-overlay"],
+[data-slot="sheet-content"] {
+  z-index: 99999 !important;
+}

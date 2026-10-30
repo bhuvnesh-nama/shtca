@@ -26,11 +26,18 @@ import {
   Check,
   Layers,
   Sparkles,
-  Shield,
   Camera,
+  Building2,
+  FileCheck2,
+  Phone,
+  User,
+  Hash,
+  Copy,
+  Printer,
+  ChevronRight,
 } from "lucide-react";
 
-// Fix Leaflet's default marker icons in Vite
+// Fix Leaflet default marker icons in Vite
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
@@ -41,6 +48,30 @@ L.Icon.Default.mergeOptions({
   iconUrl: markerIcon,
   shadowUrl: markerShadow,
 });
+
+const DEPARTMENT_LOOKUP: Record<string, string> = {
+  power_cut: "Power Discom & Street Lighting Division",
+  utility_disruption: "Power & Utilities Redressal Cell",
+  water_issue: "Water Supply & Works Board",
+  water_drainage: "Drainage & Sewerage Board",
+  road_hazard: "Public Works & Road Infrastructure (PWD)",
+  sanitation: "Solid Waste Management & Sanitation",
+  stray_animals: "Veterinary & Stray Animal Control Cell",
+  theft_security: "Public Safety & Civil Vigilance Unit",
+  safety_concern: "Civil Safety & Vigilance Unit",
+  other: "General Civic Redressal Cell",
+};
+
+const MUNICIPAL_WARDS = [
+  "Ward 42 - Preet Vihar, East Zone",
+  "Ward 18 - Connaught Place, Central Zone",
+  "Ward 24 - Mayur Vihar, East Zone",
+  "Ward 35 - Karol Bagh, Central Zone",
+  "Ward 14 - Anand Vihar, East Zone",
+  "Ward 08 - Rohini, North-West Zone",
+  "Ward 55 - Lajpat Nagar, South Zone",
+  "Ward 61 - Dwarka Sector 6, South-West Zone",
+];
 
 const getCategoryIcon = (category: IncidentCategory | string) => {
   switch (category) {
@@ -64,6 +95,20 @@ const getCategoryIcon = (category: IncidentCategory | string) => {
   }
 };
 
+// Reverse geocode helper from coordinates using OSM Nominatim
+const fetchAddressFromCoords = async (lat: number, lng: number) => {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
+      { headers: { "User-Agent": "HyperNetCivic/1.0" } }
+    );
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+};
+
 const ReportIncident: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -73,120 +118,129 @@ const ReportIncident: React.FC = () => {
   const initialLat = paramLat && !isNaN(parseFloat(paramLat)) ? parseFloat(paramLat) : 28.6304;
   const initialLng = paramLng && !isNaN(parseFloat(paramLng)) ? parseFloat(paramLng) : 77.2177;
 
+  // Form State
   const [category, setCategory] = useState<IncidentCategory>("power_cut");
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [address, setAddress] = useState("");
+  const [ward, setWard] = useState<string>("Ward 42 - Preet Vihar, East Zone");
+  const [pincode, setPincode] = useState<string>("110092");
+  const [landmark, setLandmark] = useState<string>("");
+  const [address, setAddress] = useState<string>("");
+  const [title, setTitle] = useState<string>("");
+  const [description, setDescription] = useState<string>("");
+  const [reporterName, setReporterName] = useState<string>("");
+  const [complainantPhone, setComplainantPhone] = useState<string>("");
+
   const [coords, setCoords] = useState<[number, number]>([initialLat, initialLng]);
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Auto-Cluster Duplicate Detection State
+  // Nearby similar issue detection state
   const [duplicateIncident, setDuplicateIncident] = useState<IncidentItem | null>(null);
   const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
   const [linkToExisting, setLinkToExisting] = useState(true);
   const checkTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Submitted Receipt State
+  const [submittedReceipt, setSubmittedReceipt] = useState<{
+    trackingRef: string;
+    department: string;
+    ward: string;
+    title: string;
+    isNew: boolean;
+    date: string;
+  } | null>(null);
 
   // Leaflet Mini-Map Refs
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const pinMarkerRef = useRef<L.Marker | null>(null);
 
+  // Auto-detect location on initial load if no custom lat/lng query params
+  useEffect(() => {
+    if (!paramLat && !paramLng && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const detectedCoords: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+          setCoords(detectedCoords);
+          fetchAddressFromCoords(detectedCoords[0], detectedCoords[1]).then((geo) => {
+            if (geo?.display_name && !address) {
+              setAddress(geo.display_name);
+            }
+            if (geo?.address?.postcode) {
+              setPincode(geo.address.postcode);
+            }
+          });
+        },
+        () => {},
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    }
+  }, [paramLat, paramLng]);
+
   // Initialize interactive location picker map
   useEffect(() => {
-    if (!mapContainerRef.current || mapInstanceRef.current) return;
+    if (!mapContainerRef.current || mapInstanceRef.current || submittedReceipt) return;
 
     const map = L.map(mapContainerRef.current, {
       center: coords,
-      zoom: 15,
+      zoom: 16,
       zoomControl: true,
+      attributionControl: false,
     });
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      maxZoom: 19,
+    // CartoDB Voyager Google Maps-like clean tiles
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+      subdomains: "abcd",
+      maxZoom: 20,
     }).addTo(map);
 
-    const pinIcon = L.divIcon({
-      className: "custom-pick-pin",
-      html: `
-        <div style="
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          transform: translate(-50%, -100%);
-        ">
-          <div style="
-            background-color: #2563eb;
-            color: white;
-            padding: 3px 8px;
-            border-radius: 6px;
-            font-size: 11px;
-            font-weight: 700;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-            white-space: nowrap;
-            margin-bottom: 2px;
-          ">
-            Hazard Spot
-          </div>
-          <div style="
-            width: 18px;
-            height: 18px;
-            background-color: #2563eb;
-            border: 3px solid white;
-            border-radius: 50%;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.35);
-          "></div>
-        </div>
-      `,
-      iconSize: [0, 0],
+    const marker = L.marker(coords, { draggable: true }).addTo(map);
+
+    marker.on("dragend", async (e: any) => {
+      const position = e.target.getLatLng();
+      const newPos: [number, number] = [position.lat, position.lng];
+      setCoords(newPos);
+      const geo = await fetchAddressFromCoords(newPos[0], newPos[1]);
+      if (geo?.display_name) {
+        setAddress(geo.display_name);
+      }
+      if (geo?.address?.postcode) {
+        setPincode(geo.address.postcode);
+      }
     });
 
-    const marker = L.marker(coords, { icon: pinIcon, draggable: true }).addTo(map);
-    pinMarkerRef.current = marker;
-    mapInstanceRef.current = map;
-
-    marker.on("dragend", () => {
-      const pos = marker.getLatLng();
-      setCoords([pos.lat, pos.lng]);
-    });
-
-    map.on("click", (e: L.LeafletMouseEvent) => {
+    map.on("click", async (e: L.LeafletMouseEvent) => {
       marker.setLatLng(e.latlng);
-      setCoords([e.latlng.lat, e.latlng.lng]);
+      const newPos: [number, number] = [e.latlng.lat, e.latlng.lng];
+      setCoords(newPos);
+      const geo = await fetchAddressFromCoords(newPos[0], newPos[1]);
+      if (geo?.display_name) {
+        setAddress(geo.display_name);
+      }
+      if (geo?.address?.postcode) {
+        setPincode(geo.address.postcode);
+      }
     });
+
+    mapInstanceRef.current = map;
+    pinMarkerRef.current = marker;
 
     return () => {
       map.remove();
       mapInstanceRef.current = null;
     };
-  }, []);
+  }, [submittedReceipt]);
 
-  // Sync marker position when coords update
+  // Update marker position when coords change externally
   useEffect(() => {
-    if (mapInstanceRef.current && pinMarkerRef.current) {
+    if (pinMarkerRef.current && mapInstanceRef.current) {
       pinMarkerRef.current.setLatLng(coords);
       mapInstanceRef.current.panTo(coords);
     }
   }, [coords]);
 
-  // Request browser geolocation on mount
-  useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setCoords([pos.coords.latitude, pos.coords.longitude]);
-        },
-        () => {},
-        { timeout: 5000 }
-      );
-    }
-  }, []);
-
-  // Live duplicate checking when category or coordinates change
+  // Check for nearby matching duplicate incidents when coords or category changes
   useEffect(() => {
     if (checkTimerRef.current) {
       clearTimeout(checkTimerRef.current);
@@ -195,15 +249,13 @@ const ReportIncident: React.FC = () => {
     checkTimerRef.current = setTimeout(async () => {
       setIsCheckingDuplicate(true);
       try {
-        const res = await incidentService.checkDuplicate(category, coords[0], coords[1], 300);
-        if (res && res.hasNearbyDuplicate && res.incident) {
-          setDuplicateIncident(res.incident);
-          setLinkToExisting(true);
+        const data = await incidentService.checkDuplicate(category, coords[0], coords[1], 250);
+        if (data?.hasNearbyDuplicate && data.incident) {
+          setDuplicateIncident(data.incident);
         } else {
           setDuplicateIncident(null);
         }
       } catch (err) {
-        console.error("Duplicate check failed:", err);
         setDuplicateIncident(null);
       } finally {
         setIsCheckingDuplicate(false);
@@ -225,20 +277,24 @@ const ReportIncident: React.FC = () => {
 
     setIsDetectingLocation(true);
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const newCoords: [number, number] = [
-          position.coords.latitude,
-          position.coords.longitude,
-        ];
+      async (pos) => {
+        const newCoords: [number, number] = [pos.coords.latitude, pos.coords.longitude];
         setCoords(newCoords);
+        toast.success("Location locked to your current coordinates");
         setIsDetectingLocation(false);
-        toast.success("Location set from device GPS");
+        const geo = await fetchAddressFromCoords(newCoords[0], newCoords[1]);
+        if (geo?.display_name) {
+          setAddress(geo.display_name);
+        }
+        if (geo?.address?.postcode) {
+          setPincode(geo.address.postcode);
+        }
       },
-      (error) => {
+      () => {
+        toast.error("Unable to retrieve your current location. Please pick location manually on map.");
         setIsDetectingLocation(false);
-        toast.error("Unable to retrieve GPS: " + error.message);
       },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { timeout: 8000, enableHighAccuracy: true }
     );
   };
 
@@ -246,8 +302,8 @@ const ReportIncident: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please upload an image file (PNG, JPG, WebP)");
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error("Image file size exceeds 8MB limit");
       return;
     }
 
@@ -255,11 +311,12 @@ const ReportIncident: React.FC = () => {
     try {
       const url = await incidentService.uploadEvidence(file);
       setMediaUrls((prev) => [...prev, url]);
-      toast.success("Evidence photo attached");
+      toast.success("Photo evidence attached successfully");
     } catch (err: any) {
-      toast.error("Failed to upload image: " + (err.message || "Network error"));
+      toast.error(err?.response?.data?.message || "Failed to upload image. Please try again.");
     } finally {
       setIsUploadingImage(false);
+      e.target.value = "";
     }
   };
 
@@ -271,15 +328,16 @@ const ReportIncident: React.FC = () => {
     e.preventDefault();
 
     if (!title.trim()) {
-      toast.error("Please enter a short headline for this issue");
+      toast.error("Please enter a subject / headline for the grievance");
       return;
     }
     if (!description.trim()) {
-      toast.error("Please describe the incident and its current impact");
+      toast.error("Please provide a detailed description of the civic issue");
       return;
     }
 
     const forceNew = duplicateIncident ? !linkToExisting : false;
+    const resolvedDept = DEPARTMENT_LOOKUP[category] || "General Civic Redressal Cell";
 
     setIsSubmitting(true);
     try {
@@ -290,29 +348,181 @@ const ReportIncident: React.FC = () => {
         latitude: coords[0],
         longitude: coords[1],
         address: address.trim(),
+        department: resolvedDept,
+        ward,
+        pincode: pincode.trim(),
+        landmark: landmark.trim(),
+        reporterName: reporterName.trim() || undefined,
+        complainantPhone: complainantPhone.trim() || undefined,
         media: mediaUrls,
         forceNew,
       });
 
-      if (res?.isNewIncident === false) {
-        toast.success("Report auto-clustered with nearby active incident!");
-      } else {
-        toast.success("Report submitted! It is now live on the community map.");
-      }
+      const trackingRef =
+        res?.incident?.complaintRef || "MCD-2026-" + Math.floor(10000 + Math.random() * 90000);
 
-      navigate("/");
+      setSubmittedReceipt({
+        trackingRef,
+        department: resolvedDept,
+        ward,
+        title: title.trim(),
+        isNew: res?.isNewIncident !== false,
+        date: new Date().toLocaleString("en-IN", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      });
+
+      toast.success(`Grievance registered successfully! Ref: ${trackingRef}`);
     } catch (error: any) {
-      toast.error(
-        error?.response?.data?.message || "Failed to submit report. Please try again."
-      );
+      toast.error(error?.response?.data?.message || "Failed to submit grievance. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // If receipt is generated, show official Government Grievance Receipt
+  if (submittedReceipt) {
+    return (
+      <div className="min-h-screen bg-muted/20 text-foreground flex flex-col pb-16">
+        {/* Tricolor Header Strip */}
+        <div className="h-1 w-full flex">
+          <div className="flex-1 bg-[#FF9933]" />
+          <div className="flex-1 bg-white" />
+          <div className="flex-1 bg-[#138808]" />
+        </div>
+
+        <header className="border-b bg-background/95 backdrop-blur py-3 px-4 sm:px-6">
+          <div className="max-w-3xl mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="flex size-9 items-center justify-center rounded-lg bg-[#003366] text-white">
+                <Building2 className="size-5 text-amber-400" />
+              </div>
+              <div>
+                <span className="font-bold text-base text-[#003366] dark:text-blue-300">
+                  CivicDesk Grievance Portal
+                </span>
+                <p className="text-[10px] text-muted-foreground">
+                  Citizen Grievance Redressal & Verification System
+                </p>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => navigate("/")} className="text-xs">
+              <ArrowLeft className="size-3.5 mr-1" />
+              Return to Map
+            </Button>
+          </div>
+        </header>
+
+        <main className="max-w-2xl w-full mx-auto p-4 sm:p-6 flex-1 flex flex-col justify-center">
+          <Card className="border-2 border-emerald-500/60 shadow-lg p-6 sm:p-8 bg-card space-y-6">
+            <div className="flex flex-col items-center text-center space-y-2 pb-4 border-b">
+              <div className="size-14 rounded-full bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-xs">
+                <FileCheck2 className="size-8" />
+              </div>
+              <h2 className="text-xl font-bold text-foreground">
+                Grievance Registered Successfully
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Public Grievance Officially Logged with Department Authority
+              </p>
+            </div>
+
+            {/* Receipt Summary Details */}
+            <div className="space-y-3 bg-muted/30 p-4 rounded-xl border text-xs">
+              <div className="flex items-center justify-between pb-2 border-b">
+                <span className="text-muted-foreground font-semibold">Grievance Registration No:</span>
+                <span className="font-mono font-bold text-sm text-[#003366] dark:text-blue-400 flex items-center gap-1.5 bg-blue-50 dark:bg-blue-950 px-2.5 py-1 rounded-md border border-blue-200 dark:border-blue-800">
+                  <Hash className="size-3.5 text-blue-600" />
+                  {submittedReceipt.trackingRef}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <div>
+                  <span className="text-muted-foreground block text-[11px]">Designated Department:</span>
+                  <span className="font-semibold text-foreground text-xs leading-snug">
+                    {submittedReceipt.department}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-[11px]">Zone / Ward:</span>
+                  <span className="font-semibold text-foreground text-xs leading-snug">
+                    {submittedReceipt.ward}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-[11px]">Date & Time:</span>
+                  <span className="font-medium text-foreground text-xs">{submittedReceipt.date}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-[11px]">Expected Service SLA:</span>
+                  <span className="font-semibold text-emerald-600 dark:text-emerald-400 text-xs">
+                    Within 24 Hours (Citizen Charter)
+                  </span>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t text-[11px]">
+                <span className="text-muted-foreground block">Grievance Subject:</span>
+                <p className="font-medium text-foreground mt-0.5">{submittedReceipt.title}</p>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-lg bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 text-xs text-blue-900 dark:text-blue-200 space-y-1">
+              <p className="font-semibold">Citizen Advisory:</p>
+              <p className="text-[11px] leading-relaxed text-blue-800 dark:text-blue-300">
+                Your grievance has been forwarded to the designated field engineer and nodal officer. Once on-site inspection and repair are conducted, an Action Taken Report (ATR) will be published live on the portal.
+              </p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  navigator.clipboard.writeText(submittedReceipt.trackingRef);
+                  toast.success("Reference Number copied to clipboard!");
+                }}
+                className="w-full sm:flex-1 text-xs gap-1.5"
+              >
+                <Copy className="size-3.5" /> Copy Ref No
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => window.print()}
+                className="w-full sm:flex-1 text-xs gap-1.5"
+              >
+                <Printer className="size-3.5" /> Print Receipt
+              </Button>
+              <Button
+                onClick={() => navigate("/")}
+                className="w-full sm:flex-1 text-xs bg-[#003366] hover:bg-[#002244] text-white font-bold gap-1.5"
+              >
+                Track on Live Map <ChevronRight className="size-3.5" />
+              </Button>
+            </div>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
+  const assignedDepartment = DEPARTMENT_LOOKUP[category];
+
   return (
     <div className="min-h-screen bg-muted/20 text-foreground flex flex-col pb-16 sm:pb-8">
-      {/* Top Header */}
+      {/* Indian Tricolor Strip */}
+      <div className="h-1 w-full flex">
+        <div className="flex-1 bg-[#FF9933]" />
+        <div className="flex-1 bg-white" />
+        <div className="flex-1 bg-[#138808]" />
+      </div>
+
+      {/* Official Government Top Header */}
       <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur shadow-xs">
         <div className="max-w-5xl mx-auto flex h-14 sm:h-16 items-center justify-between px-4 sm:px-6">
           <div className="flex items-center gap-2 sm:gap-3">
@@ -323,51 +533,48 @@ const ReportIncident: React.FC = () => {
               className="text-xs text-muted-foreground hover:text-foreground gap-1 px-2"
             >
               <ArrowLeft className="size-4" />
-              <span className="hidden sm:inline">Back to Map</span>
+              <span className="hidden sm:inline">Back to Safety Map</span>
             </Button>
 
             <div className="h-4 w-px bg-border" />
 
             <div className="flex items-center gap-2">
-              <div className="flex size-7 sm:size-8 items-center justify-center rounded-lg bg-blue-600 text-white shadow-xs">
-                <Shield className="size-4" />
+              <div className="flex size-8 items-center justify-center rounded-lg bg-[#003366] text-white shadow-xs">
+                <Building2 className="size-4 text-amber-400" />
               </div>
               <div>
                 <h1 className="text-sm font-bold text-foreground leading-tight">
-                  Report Local Hazard / Issue
+                  Public Grievance Registration
                 </h1>
-                <p className="text-[11px] text-muted-foreground hidden sm:block">
-                  Community Safety & Municipal Service Alert
+                <p className="text-[10px] text-muted-foreground hidden sm:block">
+                  Centralized Civic Grievance Redressal and Monitoring Portal
                 </p>
               </div>
             </div>
           </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate("/")}
-            className="text-xs"
-          >
-            Cancel
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => navigate("/")} className="text-xs">
+              Cancel
+            </Button>
+          </div>
         </div>
       </header>
 
-      {/* Main Form Content */}
+      {/* Main Grievance Form */}
       <main className="max-w-5xl w-full mx-auto p-4 sm:p-6 flex-1">
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            {/* Left Column: Category, Headline, Details & Photo */}
+            {/* Left Column: Department, Category, Details & Proof */}
             <div className="lg:col-span-7 space-y-5">
-              {/* Category Picker */}
-              <Card className="p-4 sm:p-5 border shadow-xs bg-card">
-                <div className="mb-3">
+              {/* Category & Department Selection Card */}
+              <Card className="p-4 sm:p-5 border shadow-xs bg-card space-y-3.5">
+                <div>
                   <Label className="text-sm font-bold text-foreground block">
-                    1. Select Hazard Category
+                    1. Department & Grievance Category
                   </Label>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Categorize the issue so neighbours and RWA staff receive targeted alerts
+                    Select category to automatically route grievance to the competent authority
                   </p>
                 </div>
 
@@ -381,13 +588,13 @@ const ReportIncident: React.FC = () => {
                         onClick={() => setCategory(cat.id)}
                         className={`flex flex-col items-start p-3 rounded-xl border text-left transition-all ${
                           isSelected
-                            ? "border-blue-600 bg-blue-50/80 dark:bg-blue-950/50 ring-2 ring-blue-600/30 font-semibold"
+                            ? "border-[#003366] bg-blue-50/80 dark:bg-blue-950/50 ring-2 ring-[#003366]/30 font-semibold"
                             : "border-border hover:bg-muted/50 text-muted-foreground"
                         }`}
                       >
                         <div className="mb-2 flex items-center justify-between w-full">
                           {getCategoryIcon(cat.id)}
-                          {isSelected && <Check className="size-4 text-blue-600" />}
+                          {isSelected && <Check className="size-4 text-[#003366] dark:text-blue-400" />}
                         </div>
                         <span className="text-xs font-bold text-foreground leading-tight">
                           {cat.name}
@@ -399,26 +606,39 @@ const ReportIncident: React.FC = () => {
                     );
                   })}
                 </div>
+
+                {/* Auto-routed Department Indicator */}
+                <div className="p-2.5 rounded-lg bg-muted/40 border text-xs flex items-center gap-2">
+                  <Building2 className="size-4 text-[#003366] dark:text-blue-400 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <span className="text-[10px] uppercase font-bold text-muted-foreground block">
+                      Assigned Department:
+                    </span>
+                    <span className="font-semibold text-foreground truncate block text-xs">
+                      {assignedDepartment}
+                    </span>
+                  </div>
+                </div>
               </Card>
 
-              {/* Title & Description */}
+              {/* Grievance Subject & Description Card */}
               <Card className="p-4 sm:p-5 border shadow-xs bg-card space-y-4">
                 <div>
                   <Label className="text-sm font-bold text-foreground block">
-                    2. Describe the Incident
+                    2. Grievance Particulars
                   </Label>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Provide clear headline and current on-ground situation
+                    Describe the issue clearly for on-ground field inspection and repair
                   </p>
                 </div>
 
                 <div className="space-y-1.5">
                   <Label htmlFor="title" className="text-xs font-semibold">
-                    Incident Headline <span className="text-rose-500">*</span>
+                    Headline / Subject <span className="text-rose-500">*</span>
                   </Label>
                   <Input
                     id="title"
-                    placeholder="e.g. Basement transformer spark / Stray dogs barking near park"
+                    placeholder="e.g. Main water distribution pipeline burst / Streetlight failure"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     className="text-sm"
@@ -428,11 +648,11 @@ const ReportIncident: React.FC = () => {
 
                 <div className="space-y-1.5">
                   <Label htmlFor="description" className="text-xs font-semibold">
-                    Details & Impact on Residents <span className="text-rose-500">*</span>
+                    Detailed Grievance Description <span className="text-rose-500">*</span>
                   </Label>
                   <Textarea
                     id="description"
-                    placeholder="Describe what happened, current severity, affected blocks, and if maintenance or security was alerted..."
+                    placeholder="Describe what happened, exact location, when problem started, and urgency of repair..."
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     rows={4}
@@ -444,7 +664,7 @@ const ReportIncident: React.FC = () => {
                 {/* Photo Evidence */}
                 <div className="space-y-2 pt-2 border-t">
                   <Label className="text-xs font-semibold flex items-center gap-1.5">
-                    <Camera className="size-3.5 text-blue-600" /> Photo Evidence (Optional)
+                    <Camera className="size-3.5 text-[#003366] dark:text-blue-400" /> Photo Evidence (Optional)
                   </Label>
 
                   <div className="flex flex-wrap gap-2.5 items-center">
@@ -484,95 +704,194 @@ const ReportIncident: React.FC = () => {
                       />
                     </label>
                   </div>
+                  <span className="text-[10px] text-muted-foreground block">
+                    Upload on-ground photos to accelerate Action Taken Report (ATR) verification.
+                  </span>
+                </div>
+              </Card>
+
+              {/* Complainant Contact Information */}
+              <Card className="p-4 sm:p-5 border shadow-xs bg-card space-y-3.5">
+                <div>
+                  <Label className="text-sm font-bold text-foreground block">
+                    3. Complainant Contact Information
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Enter your name and mobile number for SMS tracking updates and field officer contact
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="reporterName" className="text-xs font-semibold flex items-center gap-1">
+                      <User className="size-3 text-muted-foreground" />
+                      Complainant Name
+                    </Label>
+                    <Input
+                      id="reporterName"
+                      placeholder="e.g. Ramesh Verma"
+                      value={reporterName}
+                      onChange={(e) => setReporterName(e.target.value)}
+                      className="text-xs h-9"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label htmlFor="complainantPhone" className="text-xs font-semibold flex items-center gap-1">
+                      <Phone className="size-3 text-muted-foreground" />
+                      Mobile No. (for SMS Updates)
+                    </Label>
+                    <Input
+                      id="complainantPhone"
+                      type="tel"
+                      placeholder="e.g. 9810XXXXXX"
+                      value={complainantPhone}
+                      onChange={(e) => setComplainantPhone(e.target.value)}
+                      className="text-xs h-9"
+                    />
+                  </div>
                 </div>
               </Card>
             </div>
 
-            {/* Right Column: Location Map & Auto-Cluster Candidate */}
+            {/* Right Column: Ward, Landmark, Pincode & Ground Map */}
             <div className="lg:col-span-5 space-y-5">
-              {/* Interactive Location Picker */}
-              <Card className="p-4 sm:p-5 border shadow-xs bg-card space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-sm font-bold text-foreground flex items-center gap-1.5">
-                      <MapPin className="size-4 text-blue-600" />
-                      3. Pinpoint Location
+              {/* Location, Ward & Address Details Card */}
+              <Card className="p-4 sm:p-5 border shadow-xs bg-card space-y-3.5">
+                <div>
+                  <Label className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                    <MapPin className="size-4 text-[#003366] dark:text-blue-400" />
+                    4. Zone, Location & Map
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Pinpoint location on map and provide landmark for field inspection
+                  </p>
+                </div>
+
+                {/* Ward Selection */}
+                <div className="space-y-1">
+                  <Label htmlFor="ward-select" className="text-xs font-semibold">
+                    Zone / Ward <span className="text-rose-500">*</span>
+                  </Label>
+                  <select
+                    id="ward-select"
+                    value={ward}
+                    onChange={(e) => setWard(e.target.value)}
+                    className="w-full h-9 px-3 rounded-md border border-input bg-background text-xs truncate"
+                  >
+                    {MUNICIPAL_WARDS.map((w) => (
+                      <option key={w} value={w}>
+                        {w}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Landmark & Pincode */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div className="space-y-1">
+                    <Label htmlFor="landmark" className="text-xs font-semibold">
+                      Landmark
                     </Label>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Tap or drag the pin on the map to mark exact spot
-                    </p>
+                    <Input
+                      id="landmark"
+                      placeholder="e.g. Near Mother Dairy / Gate 3"
+                      value={landmark}
+                      onChange={(e) => setLandmark(e.target.value)}
+                      className="text-xs h-9"
+                    />
                   </div>
 
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleDetectLocation}
-                    disabled={isDetectingLocation}
-                    className="h-8 text-xs gap-1"
-                  >
-                    {isDetectingLocation ? (
-                      <Spinner className="size-3" />
-                    ) : (
-                      <Crosshair className="size-3.5 text-blue-600" />
-                    )}
-                    Use GPS
-                  </Button>
+                  <div className="space-y-1">
+                    <Label htmlFor="pincode" className="text-xs font-semibold">
+                      Pincode
+                    </Label>
+                    <Input
+                      id="pincode"
+                      placeholder="e.g. 110092"
+                      value={pincode}
+                      onChange={(e) => setPincode(e.target.value)}
+                      className="text-xs h-9"
+                      maxLength={6}
+                    />
+                  </div>
                 </div>
 
-                {/* Interactive Leaflet Mini-Map */}
-                <div className="relative w-full h-52 rounded-xl overflow-hidden border border-border shadow-2xs">
-                  <div ref={mapContainerRef} className="size-full" />
-                </div>
-
-                <div className="flex items-center justify-between text-[11px] text-muted-foreground font-mono bg-muted/40 p-2 rounded-lg border">
-                  <span>Lat: {coords[0].toFixed(5)}</span>
-                  <span>•</span>
-                  <span>Lng: {coords[1].toFixed(5)}</span>
-                </div>
-
-                <div className="space-y-1.5">
+                {/* Full Address */}
+                <div className="space-y-1">
                   <Label htmlFor="address" className="text-xs font-semibold">
-                    Apartment Block / Landmark Note
+                    Colony / Street Address
                   </Label>
                   <Input
                     id="address"
-                    placeholder="e.g. Greenwood Residency, Block C, Gate 2"
+                    placeholder="e.g. Vikas Marg, Near Mother Dairy, Block B"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
-                    className="text-sm"
+                    className="text-xs h-9"
                   />
+                </div>
+
+                {/* Interactive Leaflet Ground Map */}
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-muted-foreground">
+                      Drop Pin on Map
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleDetectLocation}
+                      disabled={isDetectingLocation}
+                      className="h-7 text-xs gap-1"
+                    >
+                      {isDetectingLocation ? (
+                        <Spinner className="size-3" />
+                      ) : (
+                        <Crosshair className="size-3 text-[#003366] dark:text-blue-400" />
+                      )}
+                      Current GPS
+                    </Button>
+                  </div>
+
+                  <div className="relative w-full h-48 rounded-xl overflow-hidden border border-border shadow-2xs">
+                    <div ref={mapContainerRef} className="size-full" />
+                  </div>
+
+                  <div className="flex items-center justify-between text-[10px] text-muted-foreground font-mono bg-muted/40 p-2 rounded-lg border">
+                    <span>Lat: {coords[0].toFixed(5)}</span>
+                    <span>•</span>
+                    <span>Lng: {coords[1].toFixed(5)}</span>
+                  </div>
                 </div>
               </Card>
 
-              {/* Auto-Cluster Duplicate Detection Card (Bonus Twist 1) */}
+              {/* Nearby Similar Incident Alert Card */}
               {isCheckingDuplicate && (
                 <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-50/50 dark:bg-blue-950/30 border border-blue-200/50 dark:border-blue-900/50 text-xs text-muted-foreground">
                   <Spinner className="size-3.5 text-blue-600" />
-                  <span>Scanning neighbourhood for nearby matching reports...</span>
+                  <span>Checking for similar open reports nearby...</span>
                 </div>
               )}
 
               {duplicateIncident && !isCheckingDuplicate && (
                 <Card className="rounded-xl border-2 border-blue-300 dark:border-blue-800 bg-blue-50/80 dark:bg-blue-950/50 p-4 space-y-3 transition-all shadow-xs">
                   <div className="flex items-start gap-3">
-                    <div className="p-2 rounded-lg bg-blue-600 text-white shrink-0 shadow-xs">
+                    <div className="p-2 rounded-lg bg-[#003366] text-white shrink-0 shadow-xs">
                       <Layers className="size-5" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wider flex items-center gap-1">
+                        <span className="text-[11px] font-bold text-blue-800 dark:text-blue-300 uppercase tracking-wider flex items-center gap-1">
                           <Sparkles className="size-3 text-blue-600" />
-                          Auto-Cluster Candidate Detected
+                          Similar Issue Reported Nearby
                         </span>
                       </div>
                       <h4 className="text-xs font-bold text-foreground leading-snug mt-1">
                         {duplicateIncident.title}
                       </h4>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
-                        {duplicateIncident.address || "Nearby in this neighbourhood"} •{" "}
-                        {duplicateIncident.reportCount || 1} existing report
-                        {(duplicateIncident.reportCount || 1) > 1 ? "s" : ""}
+                        Ref: {duplicateIncident.complaintRef || "Active Ticket"} • {duplicateIncident.reportCount || 1} existing report{(duplicateIncident.reportCount || 1) > 1 ? "s" : ""}
                       </p>
                     </div>
                   </div>
@@ -591,14 +910,11 @@ const ReportIncident: React.FC = () => {
                     >
                       {linkToExisting ? (
                         <span>
-                          <strong>Corroborate existing cluster (Recommended):</strong> Links your
-                          details & photos directly to this active issue to elevate community
-                          priority.
+                          <strong>Link to existing grievance (Recommended):</strong> Attaches your photos & details to this active municipal ticket to elevate repair priority.
                         </span>
                       ) : (
                         <span>
-                          <strong>Post as a separate incident:</strong> Will create an independent
-                          pin on the map.
+                          <strong>Submit as a separate grievance:</strong> Will create an independent ticket for municipal inspection.
                         </span>
                       )}
                     </label>
@@ -612,17 +928,17 @@ const ReportIncident: React.FC = () => {
                   type="submit"
                   size="lg"
                   disabled={isSubmitting || isUploadingImage}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold h-11 text-sm shadow-md"
+                  className="w-full bg-[#003366] hover:bg-[#002244] text-white font-bold h-11 text-sm shadow-md"
                 >
                   {isSubmitting ? (
                     <>
                       <Spinner className="mr-2" />
-                      Submitting Report...
+                      Registering Grievance...
                     </>
                   ) : duplicateIncident && linkToExisting ? (
-                    "Corroborate & Link Cluster"
+                    "Add Details to Existing Ticket"
                   ) : (
-                    "Submit Hazard Report"
+                    "Submit Public Grievance"
                   )}
                 </Button>
 
@@ -632,7 +948,7 @@ const ReportIncident: React.FC = () => {
                   onClick={() => navigate("/")}
                   className="w-full text-xs"
                 >
-                  Cancel and Return to Safety Map
+                  Cancel and Return to Portal
                 </Button>
               </div>
             </div>

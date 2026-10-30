@@ -1,0 +1,57 @@
+{
+  "name": "service",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "nodemon",
+    "build": "tsup",
+    "start": "node dist/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "canvas": "^3.2.3",
+    "cookie": "^2.0.1",
+    "cookie-parser": "latest",
+    "cors": "latest",
+    "dotenv": "latest",
+    "express": "latest",
+    "express-handlebars": "^9.0.4",
+    "helmet": "latest",
+    "jsonwebtoken": "latest",
+    "mongoose": "latest",
+    "morgan": "latest",
+    "multer": "^2.5.0",
+    "nodemailer": "^10.3.1",
+    "nodemailer-express-handlebars": "^7.0.0",
+    "pdfkit": "^0.20.2",
+    "socket.io": "^4.8.4",
+    "tsx": "^4.23.15",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@types/cookie-parser": "latest",
+    "@types/cors": "latest",
+    "@types/express": "latest",
+    "@types/jsonwebtoken": "latest",
+    "@types/morgan": "latest",
+    "@types/multer": "^2.3.0",
+    "@types/node": "latest",
+    "@types/nodemailer": "^8.0.2",
+    "@types/nodemailer-express-handlebars": "^4.0.6",
+    "@types/pdfkit": "^0.17.7",
+    "nodemon": "latest",
+    "ts-node": "latest",
+    "tsup": "latest",
+    "typescript": "latest"
+  },
+  "allowScripts": {
+    "canvas@3.2.3": true,
+    "esbuild@0.27.2": true,
+    "esbuild@0.28.2": true
+  }
+}

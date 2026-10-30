@@ -1,7 +1,7 @@
 # ==========================================
 # STAGE 1: Build TypeScript Application
 # ==========================================
-FROM node:20-bookworm-slim AS builder
+FROM node:22-bookworm-slim AS builder
 
 WORKDIR /app
 
@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
  && rm -rf /var/lib/apt/lists/*
 
 COPY package*.json ./
-RUN npm ci
+RUN npm install
 
 COPY . .
 RUN npm run build
@@ -26,7 +26,7 @@ RUN npm prune --omit=dev
 # ==========================================
 # STAGE 2: Minimal Production Runtime
 # ==========================================
-FROM node:20-bookworm-slim AS runner
+FROM node:22-bookworm-slim AS runner
 
 WORKDIR /app
 

@@ -62,19 +62,23 @@ jobs:
             
             TARGET_DIR="${{ secrets.WORK_DIR || '/opt/shtca' }}"
             
-            # Ensure target directory exists
-            if [ ! -d "$TARGET_DIR" ]; then
-              echo "Creating deployment directory: $TARGET_DIR"
-              mkdir -p "$TARGET_DIR"
-              git clone https://github.com/${{ github.repository }}.git "$TARGET_DIR"
-            fi
-
+            mkdir -p "$TARGET_DIR"
             cd "$TARGET_DIR"
+            git config --global --add safe.directory "$TARGET_DIR"
 
-            # Pull latest changes from main branch
-            echo "📥 Pulling latest release from main branch..."
-            git fetch --all
-            git reset --hard origin/main
+            # Check if git repository is initialized
+            if [ ! -d .git ]; then
+              echo "📦 Initializing git repository in $TARGET_DIR..."
+              git init -b main
+              git remote add origin "https://github.com/${{ github.repository }}.git" || git remote set-url origin "https://github.com/${{ github.repository }}.git"
+              git fetch origin main
+              git reset --hard origin/main
+            else
+              echo "📥 Pulling latest release from main branch..."
+              git remote set-url origin "https://github.com/${{ github.repository }}.git"
+              git fetch origin main
+              git reset --hard origin/main
+            fi
 
             # Ensure .env.production exists (fallback from example if first deploy)
             if [ ! -f .env.production ] && [ ! -f .env ]; then

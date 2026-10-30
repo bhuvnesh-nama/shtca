@@ -44,14 +44,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV NODE_ENV=production
 ENV PORT=8000
 
-# Copy built application and production dependencies from builder stage
+# Copy built application, templates, and production dependencies
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/src/templates ./src/templates
-COPY --from=builder /app/public ./public
 
-# Ensure upload directory exists for multipart citizen evidence storage
+# Ensure public and upload directories exist for multipart citizen evidence storage
 RUN mkdir -p /app/public/uploads
 
 EXPOSE 8000

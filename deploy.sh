@@ -33,8 +33,12 @@ if [ -d .git ]; then
 fi
 
 # 4. Spin up Docker containers
+ENV_FILE=".env.production"
+if [ ! -f "$ENV_FILE" ]; then
+    ENV_FILE=".env"
+fi
 echo "🐳 Building and starting production containers..."
-docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
+docker compose --env-file "$ENV_FILE" -f docker-compose.prod.yml up -d --build --remove-orphans
 
 # 5. Prune dangling images to free up VPS disk space
 echo "🧹 Cleaning up unused Docker build cache..."

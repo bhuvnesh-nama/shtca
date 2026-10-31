@@ -53,6 +53,9 @@ api.{$DOMAIN_NAME:shtca.com} {
         X-Frame-Options "SAMEORIGIN"
         Referrer-Policy "strict-origin-when-cross-origin"
         Permissions-Policy "geolocation=(self), camera=(), microphone=()"
+        Access-Control-Allow-Origin "*"
+        Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD"
+        Access-Control-Allow-Headers "*"
         -Server
     }
 

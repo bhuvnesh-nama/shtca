@@ -138,10 +138,15 @@ const forgotPassword = asyncHandler(async (req, res) => {
   const resetToken = user.generateResetPasswordToken();
   await user.save({ validateBeforeSave: false });
 
-  const resetURL = `https://${process.env.DOMAIN_NAME}:5173/reset-password/${resetToken}`;
+  const frontendBase =
+    process.env.FRONTEND_URL ||
+    (process.env.NODE_ENV === "production"
+      ? `https://${process.env.DOMAIN_NAME || "shtca.com"}`
+      : "http://localhost:5173");
+  const resetURL = `${frontendBase}/reset-password/${resetToken}`;
 
   try {
-    sendMail(user.email, "Reset Your Password", "forgot-password-email", {
+    await sendMail(user.email, "Reset Your Password", "forgot-password-email", {
       name: user.name,
       resetLink: resetURL,
       year: new Date().getFullYear(),
@@ -203,7 +208,7 @@ const generateEmailVerificationToken = asyncHandler(async (req, res) => {
     await user.save({ validateBeforeSave: false });
 
     try {
-      sendMail(
+      await sendMail(
         user.email,
         "Verification Token",
         "verify-email-code",
@@ -248,7 +253,7 @@ const verifyEmail = asyncHandler(async (req, res) => {
   if (!verifiedUser)
     throw new ApiError(400, "Failed to verify user email");
 
-  sendMail(
+  await sendMail(
     verifiedUser.email,
     "Email verified successfully",
     "email-verified-successfully",

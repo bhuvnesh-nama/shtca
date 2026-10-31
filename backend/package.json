@@ -21,6 +21,7 @@
     "dotenv": "latest",
     "express": "latest",
     "express-handlebars": "^9.0.4",
+    "handlebars": "^4.7.10",
     "helmet": "latest",
     "jsonwebtoken": "latest",
     "mongoose": "latest",
@@ -29,6 +30,7 @@
     "nodemailer": "^10.3.1",
     "nodemailer-express-handlebars": "^7.0.0",
     "pdfkit": "^0.20.2",
+    "resend": "^6.37.0",
     "socket.io": "^4.8.4",
     "tsx": "^4.23.15",
     "zod": "latest"
@@ -37,6 +39,7 @@
     "@types/cookie-parser": "latest",
     "@types/cors": "latest",
     "@types/express": "latest",
+    "@types/handlebars": "^4.0.40",
     "@types/jsonwebtoken": "latest",
     "@types/morgan": "latest",
     "@types/multer": "^2.3.0",

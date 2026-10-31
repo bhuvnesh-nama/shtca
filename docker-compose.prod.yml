@@ -26,6 +26,8 @@ services:
       EMAIL_PORT: ${EMAIL_PORT:-587}
       EMAIL_USER: ${EMAIL_USER:-contact@suremarkettips.com}
       EMAIL_PASS: ${EMAIL_PASS:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
       MAP_PROVIDER: ${MAP_PROVIDER:-osm}
       MAP_TILES_URL: ${MAP_TILES_URL:-https://tile.openstreetmap.org/{z}/{x}/{y}.png}
     volumes:

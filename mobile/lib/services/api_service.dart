@@ -7,6 +7,8 @@ import '../models/broadcast.dart';
 
 class ApiService {
   /// Production Backend API Gateway on dedicated subdomain
+  // Active Development Wi-Fi LAN IP (Accessible from connected physical phone)
+  static const String defaultLanApiUrl = 'http://172.20.11.238:8000/api';
   static const String productionApiUrl = 'https://api.shtca.com/api';
 
   static String get baseUrl {
@@ -16,12 +18,7 @@ class ApiService {
       return configuredUrl;
     }
 
-    // 2. In release APK / App Store mode, always connect to production API
-    if (kReleaseMode) {
-      return productionApiUrl;
-    }
-
-    // 3. Local emulator fallback if explicitly requested:
+    // 2. Local emulator fallback if explicitly requested:
     // flutter run --dart-define=USE_LOCAL_EMULATOR=true
     const useLocal = bool.fromEnvironment('USE_LOCAL_EMULATOR', defaultValue: false);
     if (useLocal) {
@@ -32,8 +29,8 @@ class ApiService {
       return 'http://localhost:8000/api';
     }
 
-    // 4. Default to production api.shtca.com so real devices & testing work immediately
-    return productionApiUrl;
+    // 3. Default to active Wi-Fi LAN host so physical device testing works out-of-the-box
+    return defaultLanApiUrl;
   }
 
   static String formatMediaUrl(String url) {

@@ -469,7 +469,7 @@ const ReportIncident: React.FC = () => {
                   </span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground block text-[11px]">Zone / Ward:</span>
+                  <span className="text-muted-foreground block text-[11px]">Authority Office / Desk:</span>
                   <span className="font-semibold text-foreground text-xs leading-snug">
                     {submittedReceipt.ward}
                   </span>
@@ -793,7 +793,7 @@ const ReportIncident: React.FC = () => {
                 <div>
                   <Label className="text-sm font-bold text-foreground flex items-center gap-1.5">
                     <MapPin className="size-4 text-[#003366] dark:text-blue-400" />
-                    4. Zone, Location & Map
+                    4. Real-time Location & Map Verification
                   </Label>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     Pinpoint location on map and provide landmark for field inspection

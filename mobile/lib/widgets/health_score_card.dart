@@ -108,7 +108,7 @@ class HealthScoreCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         const Text(
-                          'वार्ड नागरिक सेवा सूचकांक (Civic Index)',
+                          'क्षेत्रीय नागरिक सेवा सूचकांक (Civic Index)',
                           style: TextStyle(
                             fontSize: 12.5,
                             fontWeight: FontWeight.bold,

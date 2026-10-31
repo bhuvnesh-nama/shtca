@@ -285,7 +285,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(height: 6),
                         Text(
                           isHindi
-                              ? 'आपके वार्ड में स्थिति सामान्य है। सभी नागरिक सेवाएं सुचारू रूप से कार्य कर रही हैं।'
+                              ? 'आपके क्षेत्र में स्थिति सामान्य है। सभी नागरिक सेवाएं सुचारू रूप से कार्य कर रही हैं।'
                               : 'Conditions in your municipal sector are normal. All public utilities are operating smoothly.',
                           style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
                           textAlign: TextAlign.center,
@@ -682,12 +682,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           const Icon(Icons.check_circle_outline, size: 40, color: AppTheme.emerald),
                           const SizedBox(height: 8),
                           const Text(
-                            'इस वार्ड / श्रेणी में कोई सक्रिय शिकायत नहीं है',
+                            'इस क्षेत्र / श्रेणी में कोई सक्रिय शिकायत नहीं है',
                             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                           ),
                           const SizedBox(height: 4),
                           const Text(
-                            'वार्ड में स्थिति सामान्य है। नई जन शिकायत दर्ज करने हेतु नीचे दिए गए बटन का उपयोग करें।',
+                            'क्षेत्र में स्थिति सामान्य है। नई जन शिकायत दर्ज करने हेतु नीचे दिए गए बटन का उपयोग करें।',
                             style: TextStyle(fontSize: 11, color: AppTheme.textMuted),
                             textAlign: TextAlign.center,
                           ),

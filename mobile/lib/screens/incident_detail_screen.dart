@@ -450,11 +450,15 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.location_city, size: 14, color: AppTheme.govAshokaBlue),
+                      const Icon(Icons.location_on_rounded, size: 14, color: AppTheme.govAshokaBlue),
                       const SizedBox(width: 6),
-                      Text(
-                        'वार्ड: ${inc.ward}',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+                      Expanded(
+                        child: Text(
+                          inc.landmark != null && inc.landmark!.trim().isNotEmpty
+                              ? inc.landmark!
+                              : (inc.address.isNotEmpty ? inc.address : 'निकटतम नागरिक क्षेत्र'),
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+                        ),
                       ),
                     ],
                   ),

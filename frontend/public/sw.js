@@ -1,57 +1,24 @@
-// HyperNet PWA Service Worker
-const CACHE_NAME = "hypernet-cache-v1";
-const STATIC_ASSETS = [
-  "/",
-  "/manifest.json",
-  "/vite.svg"
-];
-
-self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
-    })
-  );
+// SHTCA - Self-cleaning Service Worker
+// Automatically purges stale PWA caches and unregisters to fix white-screen / ERR_FAILED issues
+self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-self.addEventListener("activate", (event) => {
+self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.map((key) => {
-          if (key !== CACHE_NAME) {
-            return caches.delete(key);
+    caches
+      .keys()
+      .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
+      .then(() => self.registration.unregister())
+      .then(() => self.clients.matchAll({ type: 'window' }))
+      .then((clients) => {
+        clients.forEach((client) => {
+          if (client.url && 'navigate' in client) {
+            client.navigate(client.url);
           }
-        })
-      );
-    })
-  );
-  self.clients.claim();
-});
-
-self.addEventListener("fetch", (event) => {
-  // Let API and Socket requests pass through network only
-  if (
-    event.request.url.includes("/api/") ||
-    event.request.url.includes("socket.io") ||
-    event.request.method !== "GET"
-  ) {
-    return;
-  }
-
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(event.request).catch(() => {
-        // Fallback for navigation requests
-        if (event.request.mode === "navigate") {
-          return caches.match("/");
-        }
-      });
-    })
+        });
+      })
   );
 });
 
+// Native browser pass-through: do not intercept fetch requests to avoid Promise rejection errors

@@ -7,9 +7,10 @@ import '../models/broadcast.dart';
 
 class ApiService {
   /// Production Backend API Gateway on dedicated subdomain
-  // Active Development Wi-Fi LAN IP (Accessible from connected physical phone)
-  static const String defaultLanApiUrl = 'http://172.20.11.238:8000/api';
+  /// Production Backend API Gateway on dedicated VPS
   static const String productionApiUrl = 'https://api.shtca.com/api';
+  // Active Development Wi-Fi LAN IP (for optional offline debugging)
+  static const String defaultLanApiUrl = 'http://172.20.11.238:8000/api';
 
   static String get baseUrl {
     // 1. Compile-time flag override (e.g. flutter run --dart-define=API_URL=http://...)
@@ -18,19 +19,19 @@ class ApiService {
       return configuredUrl;
     }
 
-    // 2. Local emulator fallback if explicitly requested:
-    // flutter run --dart-define=USE_LOCAL_EMULATOR=true
-    const useLocal = bool.fromEnvironment('USE_LOCAL_EMULATOR', defaultValue: false);
+    // 2. Local development fallback if explicitly requested:
+    // flutter run --dart-define=USE_LOCAL_API=true
+    const useLocal = bool.fromEnvironment('USE_LOCAL_API', defaultValue: false);
     if (useLocal) {
       if (kIsWeb) return 'http://localhost:8000/api';
       try {
         if (Platform.isAndroid) return 'http://10.0.2.2:8000/api';
       } catch (_) {}
-      return 'http://localhost:8000/api';
+      return defaultLanApiUrl;
     }
 
-    // 3. Default to active Wi-Fi LAN host so physical device testing works out-of-the-box
-    return defaultLanApiUrl;
+    // 3. Default for ALL APKs and standalone devices: Live Production Backend
+    return productionApiUrl;
   }
 
   static String formatMediaUrl(String url) {

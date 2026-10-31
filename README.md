@@ -33,6 +33,18 @@ Traditional public grievance portals suffer from fragmented communication, opaqu
 
 ---
 
+## 🔑 Demo & Testing Credentials
+
+For quick evaluation of the live web portal, mobile app, and officer consoles, use the pre-configured test credentials:
+
+| Role | Email | Password | Access Scope |
+| :--- | :--- | :--- | :--- |
+| **Citizen (Test User)** | `test@shtca.com` | `123456` | Citizen grievance reporting, upvoting, alerts drawer & mobile app login |
+| **Regional Officer** | `jaipur.admin@authority.gov.in` | `AdminPassword123!` | Jaipur Greater - Malviya Nagar ward dashboard, ATR closure & proof upload |
+| **Central Apex Admin** | `admin@authority.gov.in` | `AdminPassword123!` | Citywide control room, emergency broadcasts & zonal authority delegation |
+
+---
+
 ## ✨ Key Platform Innovations
 
 | Feature | Citizen Impact | Municipal / Officer Impact |

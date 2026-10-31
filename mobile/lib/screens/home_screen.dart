@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/incident.dart';
 import '../models/broadcast.dart';
 import '../services/api_service.dart';
@@ -20,8 +21,11 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  static const String _dismissedBroadcastsKey = 'shtca_dismissed_broadcasts';
+
   List<Incident> _incidents = [];
   List<EmergencyBroadcast> _broadcasts = [];
+  Set<String> _dismissedBroadcastIds = {};
   bool _isLoading = true;
   bool _isMapView = false;
   bool _isTriggeringSos = false;
@@ -46,7 +50,48 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _initLocationAndLoad();
+    _loadDismissedBroadcasts().then((_) => _initLocationAndLoad());
+  }
+
+  Future<void> _loadDismissedBroadcasts() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = prefs.getStringList(_dismissedBroadcastsKey) ?? [];
+      if (mounted) {
+        setState(() {
+          _dismissedBroadcastIds = list.toSet();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading dismissed broadcasts: $e');
+    }
+  }
+
+  Future<void> _dismissBroadcast(String id) async {
+    setState(() {
+      _dismissedBroadcastIds.add(id);
+      _broadcasts.removeWhere((b) => b.id == id);
+    });
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_dismissedBroadcastsKey, _dismissedBroadcastIds.toList());
+    } catch (e) {
+      debugPrint('Error saving dismissed broadcast: $e');
+    }
+  }
+
+  Future<void> _dismissAllBroadcasts() async {
+    final allIds = _broadcasts.map((b) => b.id).toSet();
+    setState(() {
+      _dismissedBroadcastIds.addAll(allIds);
+      _broadcasts.clear();
+    });
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_dismissedBroadcastsKey, _dismissedBroadcastIds.toList());
+    } catch (e) {
+      debugPrint('Error clearing all broadcasts: $e');
+    }
   }
 
   Future<void> _initLocationAndLoad() async {
@@ -74,6 +119,13 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
+      // Ensure dismissed broadcasts are up to date from storage
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final list = prefs.getStringList(_dismissedBroadcastsKey) ?? [];
+        _dismissedBroadcastIds = list.toSet();
+      } catch (_) {}
+
       final pos = _userLocation ?? LocationService.currentLocation;
       final results = await Future.wait([
         ApiService.fetchIncidents(
@@ -86,10 +138,15 @@ class _HomeScreenState extends State<HomeScreen> {
         ApiService.fetchBroadcasts(),
       ]);
 
+      final fetchedBroadcasts = results[1] as List<EmergencyBroadcast>;
+      final activeBroadcasts = fetchedBroadcasts
+          .where((b) => !_dismissedBroadcastIds.contains(b.id))
+          .toList();
+
       if (mounted) {
         setState(() {
           _incidents = results[0] as List<Incident>;
-          _broadcasts = results[1] as List<EmergencyBroadcast>;
+          _broadcasts = activeBroadcasts;
         });
       }
     } catch (e) {
@@ -245,6 +302,28 @@ class _HomeScreenState extends State<HomeScreen> {
                         style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppTheme.govAshokaBlue),
                       ),
                       const Spacer(),
+                      if (_broadcasts.isNotEmpty) ...[
+                        TextButton(
+                          onPressed: () async {
+                            await _dismissAllBroadcasts();
+                            setModalState(() {});
+                          },
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: Text(
+                            isHindi ? 'सभी हटाएं' : 'Clear All',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.govAshokaBlue,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                      ],
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
@@ -301,8 +380,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         EmergencyBroadcastBanner(
                           broadcasts: _broadcasts,
-                          onDismiss: (id) {
-                            setState(() => _broadcasts.removeWhere((b) => b.id == id));
+                          onDismiss: (id) async {
+                            await _dismissBroadcast(id);
                             setModalState(() {});
                           },
                         ),

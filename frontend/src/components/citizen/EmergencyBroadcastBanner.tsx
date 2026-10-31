@@ -5,13 +5,24 @@ import { AlertTriangle, Info, X, Radio, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { io } from "socket.io-client";
 
+const DISMISSED_STORAGE_KEY = "shtca_dismissed_broadcasts";
+
+const getSavedDismissedIds = (): Set<string> => {
+  try {
+    const raw = localStorage.getItem(DISMISSED_STORAGE_KEY);
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch {
+    return new Set();
+  }
+};
+
 interface EmergencyBroadcastBannerProps {
   ward?: string;
 }
 
 export const EmergencyBroadcastBanner: React.FC<EmergencyBroadcastBannerProps> = ({ ward = "all" }) => {
   const [broadcasts, setBroadcasts] = useState<BroadcastItem[]>([]);
-  const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => new Set());
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => getSavedDismissedIds());
 
   useEffect(() => {
     // Fetch active broadcasts
@@ -39,7 +50,15 @@ export const EmergencyBroadcastBanner: React.FC<EmergencyBroadcastBannerProps> =
   }, [ward]);
 
   const handleDismiss = (id: string) => {
-    setDismissedIds((prev) => new Set([...prev, id]));
+    setDismissedIds((prev) => {
+      const next = new Set([...prev, id]);
+      try {
+        localStorage.setItem(DISMISSED_STORAGE_KEY, JSON.stringify(Array.from(next)));
+      } catch (err) {
+        console.warn("Failed to save dismissed broadcast", err);
+      }
+      return next;
+    });
   };
 
   const visibleBroadcasts = broadcasts.filter((b) => !dismissedIds.has(b._id));

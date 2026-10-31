@@ -22,6 +22,7 @@ import {
   Radio,
   X,
   UserCheck,
+  CheckCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { io } from "socket.io-client";
@@ -54,6 +55,26 @@ const getCategoryIcon = (category: string) => {
   }
 };
 
+const DISMISSED_BROADCASTS_KEY = "shtca_dismissed_broadcasts";
+const DISMISSED_GRIEVANCES_KEY = "shtca_dismissed_grievances";
+
+const getSavedIds = (key: string): Set<string> => {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch {
+    return new Set();
+  }
+};
+
+const saveIds = (key: string, ids: Set<string>) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(Array.from(ids)));
+  } catch (err) {
+    console.warn(`Failed to save dismissed IDs for ${key}:`, err);
+  }
+};
+
 export const AlertsDrawer: React.FC<AlertsDrawerProps> = ({
   open,
   onOpenChange,
@@ -63,7 +84,8 @@ export const AlertsDrawer: React.FC<AlertsDrawerProps> = ({
 }) => {
   const [pushEnabled, setPushEnabled] = useState(false);
   const [broadcasts, setBroadcasts] = useState<BroadcastItem[]>([]);
-  const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => new Set());
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => getSavedIds(DISMISSED_BROADCASTS_KEY));
+  const [dismissedGrievanceIds, setDismissedGrievanceIds] = useState<Set<string>>(() => getSavedIds(DISMISSED_GRIEVANCES_KEY));
   const [activeTab, setActiveTab] = useState<"all" | "broadcasts" | "grievances">("all");
 
   useEffect(() => {
@@ -79,8 +101,9 @@ export const AlertsDrawer: React.FC<AlertsDrawerProps> = ({
       .then((data) => {
         const list = data || [];
         setBroadcasts(list);
+        const saved = getSavedIds(DISMISSED_BROADCASTS_KEY);
         if (onBroadcastCountChange) {
-          onBroadcastCountChange(list.length);
+          onBroadcastCountChange(list.filter((b) => !saved.has(b._id)).length);
         }
       })
       .catch((err) => {
@@ -121,11 +144,37 @@ export const AlertsDrawer: React.FC<AlertsDrawerProps> = ({
     setDismissedIds((prev) => {
       const next = new Set(prev);
       next.add(id);
+      saveIds(DISMISSED_BROADCASTS_KEY, next);
       if (onBroadcastCountChange) {
         onBroadcastCountChange(broadcasts.filter((b) => !next.has(b._id)).length);
       }
       return next;
     });
+  };
+
+  const handleDismissGrievance = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDismissedGrievanceIds((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      saveIds(DISMISSED_GRIEVANCES_KEY, next);
+      return next;
+    });
+  };
+
+  const handleClearAll = () => {
+    const nextBroadcasts = new Set([...dismissedIds, ...broadcasts.map((b) => b._id)]);
+    setDismissedIds(nextBroadcasts);
+    saveIds(DISMISSED_BROADCASTS_KEY, nextBroadcasts);
+
+    const nextGrievances = new Set([...dismissedGrievanceIds, ...incidents.map((i) => i._id)]);
+    setDismissedGrievanceIds(nextGrievances);
+    saveIds(DISMISSED_GRIEVANCES_KEY, nextGrievances);
+
+    if (onBroadcastCountChange) {
+      onBroadcastCountChange(0);
+    }
+    toast.success("All notifications and advisories cleared.");
   };
 
   const handleRequestPush = async () => {
@@ -154,7 +203,7 @@ export const AlertsDrawer: React.FC<AlertsDrawerProps> = ({
 
   const visibleBroadcasts = broadcasts.filter((b) => !dismissedIds.has(b._id));
   const criticalAlerts = incidents.filter(
-    (i) => i.severity === "critical" || i.severity === "high"
+    (i) => (i.severity === "critical" || i.severity === "high") && !dismissedGrievanceIds.has(i._id)
   );
 
   const totalCount = visibleBroadcasts.length + criticalAlerts.length;
@@ -169,11 +218,24 @@ export const AlertsDrawer: React.FC<AlertsDrawerProps> = ({
               <BellRing className="size-5 text-blue-600" />
               Notifications & Advisories
             </SheetTitle>
-            {totalCount > 0 && (
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
-                {totalCount} Active
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {totalCount > 0 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleClearAll}
+                    className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 hover:underline flex items-center gap-1 cursor-pointer transition-colors"
+                    title="Clear all alerts"
+                  >
+                    <CheckCheck className="size-3.5" />
+                    Clear All
+                  </button>
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                    {totalCount} Active
+                  </span>
+                </>
+              )}
+            </div>
           </div>
           <SheetDescription className="text-xs text-muted-foreground">
             Official emergency broadcasts, civic notices, and high-priority hazard alerts
@@ -364,9 +426,17 @@ export const AlertsDrawer: React.FC<AlertsDrawerProps> = ({
                       onSelectIncident(alert);
                       onOpenChange(false);
                     }}
-                    className="p-3 rounded-xl border border-border bg-card hover:border-blue-400 dark:hover:border-blue-700 cursor-pointer transition-all space-y-1.5 shadow-2xs hover:shadow-xs"
+                    className="relative p-3 rounded-xl border border-border bg-card hover:border-blue-400 dark:hover:border-blue-700 cursor-pointer transition-all space-y-1.5 shadow-2xs hover:shadow-xs group"
                   >
-                    <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={(e) => handleDismissGrievance(alert._id, e)}
+                      className="absolute top-2.5 right-2.5 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 opacity-70 group-hover:opacity-100 transition-opacity"
+                      title="Dismiss alert"
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                    <div className="flex items-center justify-between pr-6">
                       <span className="flex items-center gap-1.5 text-xs font-bold text-foreground truncate">
                         {getCategoryIcon(alert.category)}
                         <span className="truncate">{alert.title}</span>

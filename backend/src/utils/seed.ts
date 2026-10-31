@@ -64,6 +64,14 @@ export const seedAdminUser = async () => {
         ward: "AUTH-RWA-JAIPUR-JLP",
         phone: "+91-9414012345",
       },
+      {
+        name: "Test Citizen User",
+        email: "test@shtca.com",
+        password: "123456",
+        role: "citizen",
+        ward: "all",
+        phone: "+91-9876543210",
+      },
     ];
 
     for (const off of officers) {

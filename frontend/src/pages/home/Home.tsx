@@ -178,8 +178,18 @@ function Home() {
     }
   };
 
+  const getDismissedGrievanceIds = (): Set<string> => {
+    try {
+      const raw = localStorage.getItem("shtca_dismissed_grievances");
+      return raw ? new Set(JSON.parse(raw)) : new Set();
+    } catch {
+      return new Set();
+    }
+  };
+
+  const dismissedGrievanceIds = getDismissedGrievanceIds();
   const criticalCount = incidents.filter(
-    (i) => i.severity === "critical" || i.severity === "high"
+    (i) => (i.severity === "critical" || i.severity === "high") && !dismissedGrievanceIds.has(i._id)
   ).length;
   const totalAlertCount = criticalCount + broadcastCount;
 

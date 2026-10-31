@@ -135,6 +135,17 @@ export const getNearbyIncidents = asyncHandler(async (req: Request, res: Respons
       .populate("reports")
       .populate("createdBy", "name email avatarUrl")
       .limit(queryLimit);
+
+    // Fallback: If no incidents within strict radius (e.g. developer testing outside ward boundary),
+    // return latest active incidents instead of showing an empty blank screen
+    if (incidents.length === 0) {
+      delete query.location;
+      incidents = await Incident.find(query)
+        .populate("reports")
+        .populate("createdBy", "name email avatarUrl")
+        .sort({ createdAt: -1 })
+        .limit(queryLimit);
+    }
   } else {
     incidents = await Incident.find(query)
       .populate("reports")

@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 
@@ -31,8 +33,8 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
     'Ward 14 - Anand Vihar ISBT',
   ];
 
-  final double _latitude = 28.6304;
-  final double _longitude = 77.2177;
+  double _latitude = 28.6304;
+  double _longitude = 77.2177;
   final List<String> _attachedMedia = [];
 
   // Similar issue detection state
@@ -562,6 +564,89 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 14),
+
+              // Interactive Map Location Picker
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppTheme.borderLight),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.pin_drop_rounded, size: 16, color: AppTheme.govAshokaBlue),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'मानचित्र पर स्थान चिन्हित करें / Pinpoint on Map',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppTheme.govAshokaBlue.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            '${_latitude.toStringAsFixed(4)}°, ${_longitude.toStringAsFixed(4)}°',
+                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppTheme.govAshokaBlue),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'सटीक स्थल हेतु मानचित्र पर टैप करें (Tap anywhere on map to pin location)',
+                      style: TextStyle(fontSize: 10.5, color: AppTheme.textMuted),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 160,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: FlutterMap(
+                          options: MapOptions(
+                            initialCenter: LatLng(_latitude, _longitude),
+                            initialZoom: 14.0,
+                            onTap: (_, latLng) {
+                              setState(() {
+                                _latitude = latLng.latitude;
+                                _longitude = latLng.longitude;
+                              });
+                              _triggerDuplicateCheck();
+                            },
+                          ),
+                          children: [
+                            TileLayer(
+                              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                              userAgentPackageName: 'com.shtca.portal',
+                            ),
+                            MarkerLayer(
+                              markers: [
+                                Marker(
+                                  point: LatLng(_latitude, _longitude),
+                                  width: 36,
+                                  height: 36,
+                                  child: const Icon(
+                                    Icons.location_on,
+                                    size: 36,
+                                    color: Color(0xFFEA580C),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 14),
 

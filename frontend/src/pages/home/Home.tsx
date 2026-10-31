@@ -48,11 +48,6 @@ function Home() {
       if (statusFilter !== "all") params.status = statusFilter;
       if (selectedWard !== "all") params.ward = selectedWard;
       if (searchQuery.trim()) params.search = searchQuery.trim();
-      if (userLocation) {
-        params.lat = userLocation[0];
-        params.lng = userLocation[1];
-        params.radius = 15000;
-      }
 
       const data = await incidentService.getNearbyIncidents(params);
       setIncidents(data);
@@ -61,7 +56,7 @@ function Home() {
     } finally {
       setLoading(false);
     }
-  }, [categoryFilter, statusFilter, selectedWard, searchQuery, userLocation]);
+  }, [categoryFilter, statusFilter, selectedWard, searchQuery]);
 
   const fetchIncidentsRef = useRef(fetchIncidents);
   useEffect(() => {

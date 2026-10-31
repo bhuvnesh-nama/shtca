@@ -9,6 +9,7 @@ import '../widgets/emergency_broadcast_banner.dart';
 import 'report_incident_screen.dart';
 import 'incident_detail_screen.dart';
 import 'admin_dashboard_screen.dart';
+import '../widgets/civic_map_view.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -21,6 +22,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Incident> _incidents = [];
   List<EmergencyBroadcast> _broadcasts = [];
   bool _isLoading = true;
+  bool _isMapView = false;
 
   String _selectedCategory = 'all';
   String _selectedWard = 'all';
@@ -253,6 +255,15 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     ),
+                    // View Toggle (Feed vs Map)
+                    IconButton(
+                      icon: Icon(
+                        _isMapView ? Icons.format_list_bulleted_rounded : Icons.map_rounded,
+                        color: _isMapView ? AppTheme.emerald : AppTheme.govAshokaBlue,
+                      ),
+                      onPressed: () => setState(() => _isMapView = !_isMapView),
+                      tooltip: _isMapView ? 'सूची दृश्य (List View)' : 'लाइव मानचित्र (Live Map)',
+                    ),
                     // Emergency SOS Panic Button
                     IconButton(
                       icon: const Icon(Icons.emergency_rounded, color: Colors.red),
@@ -393,13 +404,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
 
-                  // Section Header
+                  // Section Header & View Toggle (Feed vs Live Map)
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
+                    padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
                     child: Row(
                       children: [
                         Text(
-                          isHindi ? 'नागरिक शिकायत निवारण कतार' : 'Municipal Grievance Redressal Feed',
+                          _isMapView
+                              ? (isHindi ? '🗺️ लाइव नागरिक मानचित्र' : '🗺️ Live Civic Map')
+                              : (isHindi ? '📋 नागरिक शिकायत निवारण' : '📋 Grievance Redressal Feed'),
                           style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
@@ -407,16 +420,111 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         const Spacer(),
-                        Text(
-                          '${_incidents.length} प्रकरण',
-                          style: const TextStyle(fontSize: 11, color: AppTheme.textMuted, fontWeight: FontWeight.w600),
+                        // Segmented View Toggle Switch
+                        Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: AppTheme.govAshokaBlue.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppTheme.borderLight),
+                          ),
+                          child: Row(
+                            children: [
+                              GestureDetector(
+                                onTap: () => setState(() => _isMapView = false),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: !_isMapView ? AppTheme.govAshokaBlue : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.format_list_bulleted,
+                                        size: 13,
+                                        color: !_isMapView ? Colors.white : AppTheme.govAshokaBlue,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        isHindi ? 'सूची' : 'List',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: !_isMapView ? Colors.white : AppTheme.govAshokaBlue,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () => setState(() => _isMapView = true),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: _isMapView ? AppTheme.govAshokaBlue : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.map_rounded,
+                                        size: 13,
+                                        color: _isMapView ? Colors.white : AppTheme.govAshokaBlue,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        isHindi ? 'मानचित्र' : 'Map',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: _isMapView ? Colors.white : AppTheme.govAshokaBlue,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ),
 
-                  // Incident List Cards
-                  if (_isLoading && _incidents.isEmpty)
+                  // Map View vs List View Container
+                  if (_isMapView)
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 16),
+                      height: MediaQuery.of(context).size.height * 0.62,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: AppTheme.borderLight),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black12, blurRadius: 6, offset: Offset(0, 2)),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: CivicMapView(
+                          incidents: _incidents,
+                          onIncidentTap: (item) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => IncidentDetailScreen(
+                                  incidentId: item.id,
+                                  initialIncident: item,
+                                ),
+                              ),
+                            ).then((_) => _loadData());
+                          },
+                          onRefresh: _loadData,
+                        ),
+                      ),
+                    )
+                  else if (_isLoading && _incidents.isEmpty)
                     const Padding(
                       padding: EdgeInsets.all(40),
                       child: Center(child: CircularProgressIndicator()),

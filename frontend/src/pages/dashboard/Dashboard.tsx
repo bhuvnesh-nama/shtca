@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppSelector } from "@/app/hooks";
 import { incidentService } from "@/services/incidentService";
+import { api } from "@/lib/apiClient";
 import { formatMediaUrl } from "@/utils/media";
 import type { IncidentItem, HealthScoreData, AnalyticsData, PerformanceMetrics } from "@/types/incident";
 import { StatusBadge } from "@/components/citizen/StatusBadge";
@@ -66,6 +67,7 @@ import {
   Phone,
   Tag,
   ChevronDown,
+  UserPlus,
 } from "lucide-react";
 
 const getCategoryIcon = (category: string) => {
@@ -104,15 +106,62 @@ const Dashboard = () => {
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [adminViewMode, setAdminViewMode] = useState<"map" | "table">("map");
 
-  // Hyperlocal Jurisdiction Office Selection
-  const initialOfficeId = user?.ward && LOCAL_JURISDICTION_OFFICES.some((o) => o.id === user.ward)
+  // Hyperlocal Jurisdiction Office Selection & Isolation
+  const isSuperAdmin = (!user?.ward || user?.ward === "AUTH-APEX-01") && user?.role === "admin";
+  const initialOfficeId = !isSuperAdmin && user?.ward && LOCAL_JURISDICTION_OFFICES.some((o) => o.id === user.ward)
     ? user.ward
-    : "AUTH-APEX-01";
+    : "AUTH-ZONE-JAIPUR-MALVIYA";
   const [selectedOfficeId, setSelectedOfficeId] = useState<string>(initialOfficeId);
+
+  useEffect(() => {
+    if (!isSuperAdmin && user?.ward) {
+      setSelectedOfficeId(user.ward);
+    }
+  }, [user, isSuperAdmin]);
 
   const currentOffice: LocalOfficeJurisdiction =
     LOCAL_JURISDICTION_OFFICES.find((o) => o.id === selectedOfficeId) ||
     LOCAL_JURISDICTION_OFFICES[0];
+
+
+  // New Admin / Officer Creation State (Phase 11: Multi-Admin Support)
+  const [createOfficerModalOpen, setCreateOfficerModalOpen] = useState(false);
+  const [newOfficerName, setNewOfficerName] = useState("");
+  const [newOfficerEmail, setNewOfficerEmail] = useState("");
+  const [newOfficerPassword, setNewOfficerPassword] = useState("");
+  const [newOfficerPhone, setNewOfficerPhone] = useState("");
+  const [newOfficerRole, setNewOfficerRole] = useState<"admin" | "officer">("admin");
+  const [newOfficerWard, setNewOfficerWard] = useState(selectedOfficeId);
+  const [isCreatingOfficer, setIsCreatingOfficer] = useState(false);
+
+  const handleCreateOfficer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newOfficerName.trim() || !newOfficerEmail.trim() || !newOfficerPassword.trim()) {
+      toast.error("Name, email and password are required");
+      return;
+    }
+    setIsCreatingOfficer(true);
+    try {
+      await api.post("/auth/authority/register", {
+        name: newOfficerName.trim(),
+        email: newOfficerEmail.trim(),
+        password: newOfficerPassword.trim(),
+        phone: newOfficerPhone.trim(),
+        role: newOfficerRole,
+        ward: newOfficerWard,
+      });
+      toast.success(`Authority account created for ${newOfficerName.trim()}! Assigned to desk: ${newOfficerWard}`);
+      setCreateOfficerModalOpen(false);
+      setNewOfficerName("");
+      setNewOfficerEmail("");
+      setNewOfficerPassword("");
+      setNewOfficerPhone("");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to create authority account");
+    } finally {
+      setIsCreatingOfficer(false);
+    }
+  };
 
   // Status Change Dialog State
   const [selectedIncident, setSelectedIncident] = useState<IncidentItem | null>(null);
@@ -587,6 +636,20 @@ const Dashboard = () => {
             <Button
               variant="outline"
               size="sm"
+              onClick={() => {
+                setNewOfficerWard(selectedOfficeId);
+                setCreateOfficerModalOpen(true);
+              }}
+              className="h-8 text-xs gap-1.5 border-blue-400/40 bg-blue-50/50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100"
+              title="Create new Zonal Admin or Field Officer account"
+            >
+              <UserPlus className="size-3.5 text-blue-600 dark:text-blue-400" />
+              <span className="hidden sm:inline">Add Admin / Officer</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setAnalyticsModalOpen(true)}
               className="h-8 text-xs gap-1.5"
             >
@@ -617,7 +680,8 @@ const Dashboard = () => {
 
             {/* Active Local Jurisdiction Office Selector (Hyperlocal Tenant Routing) */}
             <div className="flex items-center gap-2 pl-2 border-l border-border">
-              <DropdownMenu>
+              {isSuperAdmin ? (
+                <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
@@ -724,6 +788,22 @@ const Dashboard = () => {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
+              ) : (
+                <div
+                  className="h-8.5 px-3 py-1 rounded-md border border-blue-300 dark:border-blue-800 bg-blue-50/70 dark:bg-blue-950/40 text-blue-950 dark:text-blue-100 flex items-center gap-2 shadow-2xs"
+                  title="Your authorized regional jurisdiction (Tenant isolation active)"
+                >
+                  <span className="text-sm shrink-0">{currentOffice.icon}</span>
+                  <div className="flex flex-col text-left leading-tight">
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300 flex items-center gap-1">
+                      <span>🔒</span> {currentOffice.tierBadge} (Isolated Desk)
+                    </span>
+                    <span className="font-bold text-foreground text-xs truncate max-w-[150px] sm:max-w-[220px]">
+                      {currentOffice.shortName}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1841,6 +1921,122 @@ const Dashboard = () => {
           </div>
         </DialogContent>
       </Dialog>
+    
+      {/* 6. Create New Admin / Officer Dialog */}
+      <Dialog open={createOfficerModalOpen} onOpenChange={setCreateOfficerModalOpen}>
+        <DialogContent className="max-w-md p-5 bg-background">
+          <DialogHeader className="pb-2 border-b">
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <UserPlus className="size-5 text-[#003366] dark:text-blue-400" />
+              Create Regional Authority Admin / Officer
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+              Add a new zonal admin or field officer bound to a designated municipal authority jurisdiction.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleCreateOfficer} className="space-y-3.5 pt-2">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold">Officer / Admin Full Name *</label>
+              <Input
+                value={newOfficerName}
+                onChange={(e) => setNewOfficerName(e.target.value)}
+                placeholder="e.g. Ramesh Chandra (Executive Engineer)"
+                className="text-xs h-8"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold">Official Email *</label>
+                <Input
+                  type="email"
+                  value={newOfficerEmail}
+                  onChange={(e) => setNewOfficerEmail(e.target.value)}
+                  placeholder="officer@authority.gov.in"
+                  className="text-xs h-8 font-mono"
+                  required
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold">Password *</label>
+                <Input
+                  type="password"
+                  value={newOfficerPassword}
+                  onChange={(e) => setNewOfficerPassword(e.target.value)}
+                  placeholder="Min 6 characters"
+                  className="text-xs h-8"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold">Authority Role</label>
+                <select
+                  value={newOfficerRole}
+                  onChange={(e) => setNewOfficerRole(e.target.value as any)}
+                  className="w-full text-xs h-8 px-2 rounded-md border bg-background"
+                >
+                  <option value="admin">Zonal Authority Admin</option>
+                  <option value="officer">Field Verification Officer</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-semibold">Mobile Contact</label>
+                <Input
+                  value={newOfficerPhone}
+                  onChange={(e) => setNewOfficerPhone(e.target.value)}
+                  placeholder="e.g. 9810XXXXXX"
+                  className="text-xs h-8 font-mono"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold">Assigned Municipal Authority Office *</label>
+              <select
+                value={newOfficerWard}
+                onChange={(e) => setNewOfficerWard(e.target.value)}
+                className="w-full text-xs h-8 px-2 rounded-md border bg-background"
+              >
+                {LOCAL_JURISDICTION_OFFICES.map((off) => (
+                  <option key={off.id} value={off.id}>
+                    {off.icon} {off.shortName} ({off.areaLabel})
+                  </option>
+                ))}
+              </select>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                🔒 Zonal Isolation: This admin will ONLY see grievances and statistics assigned to this designated desk.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setCreateOfficerModalOpen(false)}
+                className="text-xs"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={isCreatingOfficer}
+                className="text-xs bg-[#003366] hover:bg-[#002244] text-white font-semibold gap-1.5"
+              >
+                <UserPlus className="size-3.5" />
+                {isCreatingOfficer ? "Creating..." : "Create Authority Account"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 };

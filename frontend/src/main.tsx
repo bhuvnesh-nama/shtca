@@ -16,6 +16,7 @@ import ResetPasswordEmailSentSuccessFully from './pages/forgot-password/ResetPas
 import VerifyEmail from './pages/verify-email/VerifyEmail'
 import GuestRoute from './layouts/GuestRoute'
 import AdminRoute from './layouts/AdminRoute'
+import ProtectedRoute from './layouts/ProtectedRoute'
 import AdminLogin from './pages/admin/AdminLogin'
 import AppLayout from './layouts/AppLayout'
 import Home from './pages/home/Home'
@@ -25,12 +26,14 @@ import { LanguageProvider } from './context/LanguageContext'
 
 const router = createBrowserRouter(createRoutesFromElements(
   <Route path="/" element={<AppLayout/>}>
-    {/* Public Citizen Portal */}
-    <Route>
+    {/* Protected Citizen Portal - Sign-In Required */}
+    <Route element={<ProtectedRoute />}>
       <Route index element={<Home />} />
       <Route path="/report" element={<ReportIncident />} />
-      <Route path="/verify-email" element={<VerifyEmail />} />
     </Route>
+
+    {/* Verification Route */}
+    <Route path="/verify-email" element={<VerifyEmail />} />
     
     {/* Citizen Guest Auth Routes */}
     <Route path="/" element={<GuestRoute />}>

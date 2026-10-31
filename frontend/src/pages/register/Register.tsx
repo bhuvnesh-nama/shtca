@@ -26,7 +26,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Spinner } from "@/components/ui/spinner";
-import { Building2, User, Mail, Lock, Phone, MapPin, ArrowRight, ShieldCheck } from "lucide-react";
+import { User, Mail, Lock, Phone, ArrowRight, ShieldCheck } from "lucide-react";
 
 interface RegisterErrorPayload {
   response?: {
@@ -47,7 +47,6 @@ function Register() {
       name: "",
       email: "",
       phone: "",
-      ward: "Ward 42 - Preet Vihar",
       password: "",
     },
   });
@@ -86,13 +85,15 @@ function Register() {
             <div className="flex-1 bg-[#138808]" />
           </div>
 
-          <Link to="/" className="flex items-center gap-2 group">
-            <div className="flex size-11 items-center justify-center rounded-xl bg-[#003366] text-white shadow-md group-hover:scale-105 transition-transform">
-              <Building2 className="size-6 text-amber-400" />
-            </div>
+          <Link to="/" className="flex items-center gap-2.5 group">
+            <img
+              src="/logo.png"
+              alt="SHTCA Logo"
+              className="size-11 rounded-xl object-contain bg-white p-1 border border-border shadow-md group-hover:scale-105 transition-transform"
+            />
             <div className="text-left">
               <span className="font-extrabold text-xl tracking-tight text-[#003366] dark:text-blue-400 block leading-tight">
-                CivicDesk <span className="text-xs font-bold px-1.5 py-0.5 rounded-sm bg-blue-100 dark:bg-blue-950 text-[#003366] dark:text-blue-200 uppercase tracking-wider border border-blue-300 dark:border-blue-800 ml-1">Citizen</span>
+                SHTCA <span className="text-xs font-bold px-1.5 py-0.5 rounded-sm bg-blue-100 dark:bg-blue-950 text-[#003366] dark:text-blue-200 uppercase tracking-wider border border-blue-300 dark:border-blue-800 ml-1">Citizen</span>
               </span>
               <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">
                 Public Grievance Redressal Portal
@@ -189,33 +190,6 @@ function Register() {
                     )}
                   />
                 </div>
-
-                {/* Residential Ward */}
-                <FormField
-                  control={form.control}
-                  name="ward"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs font-semibold">Zone / Residential Area</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <MapPin className="absolute left-3 top-2.5 size-4 text-muted-foreground pointer-events-none" />
-                          <select
-                            {...field}
-                            className="w-full h-9 pl-9 pr-3 rounded-md border border-input bg-background text-xs text-foreground focus:outline-hidden"
-                          >
-                            <option value="Ward 42 - Preet Vihar">Zone 1 - East (Preet Vihar)</option>
-                            <option value="Ward 18 - Connaught Place">Zone 2 - Central (Connaught Place)</option>
-                            <option value="Ward 24 - Mayur Vihar">Zone 3 - East (Mayur Vihar)</option>
-                            <option value="Ward 35 - Karol Bagh">Zone 4 - Central (Karol Bagh)</option>
-                            <option value="Ward 14 - Anand Vihar">Zone 5 - East (Anand Vihar)</option>
-                          </select>
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
 
                 {/* Password */}
                 <FormField

@@ -33,10 +33,10 @@ function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedWard] = useState("all");
 
-  // Location
-  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  // Location: Default initialized to user's active area (Jaipur: 26.86081, 75.81854)
+  const [userLocation, setUserLocation] = useState<[number, number]>([26.86081, 75.81854]);
   const [isPickingLocation, setIsPickingLocation] = useState(false);
-  const [pickedLocation, setPickedLocation] = useState<[number, number] | null>(null);
+  const [pickedLocation, setPickedLocation] = useState<[number, number]>([26.86081, 75.81854]);
   const [isLiveConnected, setIsLiveConnected] = useState(false);
 
   // Fetch Incidents
@@ -44,6 +44,11 @@ function Home() {
     try {
       setLoading(true);
       const params: any = {};
+      if (userLocation) {
+        params.lat = userLocation[0];
+        params.lng = userLocation[1];
+        params.radius = 40000; // 40 km hyperlocal vicinity isolation
+      }
       if (categoryFilter !== "all") params.category = categoryFilter;
       if (statusFilter !== "all") params.status = statusFilter;
       if (selectedWard !== "all") params.ward = selectedWard;
@@ -56,7 +61,7 @@ function Home() {
     } finally {
       setLoading(false);
     }
-  }, [categoryFilter, statusFilter, selectedWard, searchQuery]);
+  }, [categoryFilter, statusFilter, selectedWard, searchQuery, userLocation]);
 
   const fetchIncidentsRef = useRef(fetchIncidents);
   useEffect(() => {

@@ -3,6 +3,7 @@ import {
   registerUser,
   loginUser,
   adminLoginUser,
+  createAuthorityAccount,
   logoutUser,
   getCurrentUser,
   forgotPassword,
@@ -20,6 +21,7 @@ const router = Router();
 router.route("/register").post(validate(registerSchema), registerUser);
 router.route("/login").post(validate(loginSchema), loginUser);
 router.route("/admin-login").post(validate(loginSchema), adminLoginUser);
+router.route("/authority/register").post(createAuthorityAccount);
 router.route("/logout").post(authMiddleware, logoutUser);
 router.route("/current-user").get(authMiddleware, getCurrentUser);
 router.route("/forgot-password").post(validate(forgotPasswordSchema), forgotPassword);

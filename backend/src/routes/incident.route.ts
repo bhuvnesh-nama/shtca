@@ -36,7 +36,7 @@ router.delete("/broadcasts/:id", optionalAuthMiddleware, dismissBroadcast);
 router.post("/sos", optionalAuthMiddleware, triggerSosEmergency);
 router.post("/simulate", simulateDemoScenario);
 router.get("/categories", getCategories);
-router.get("/", getNearbyIncidents);
+router.get("/", optionalAuthMiddleware, getNearbyIncidents);
 router.get("/:id", getIncidentById);
 router.post("/:id/upvote", optionalAuthMiddleware, upvoteIncident);
 router.post("/:id/comments", optionalAuthMiddleware, addIncidentComment);

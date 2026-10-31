@@ -313,10 +313,10 @@ export const IncidentDetailDialog: React.FC<IncidentDetailDialogProps> = ({
               <div className="space-y-1">
                 <div className="flex items-center gap-1 text-muted-foreground text-[11px]">
                   <MapPin className="size-3 text-rose-500" />
-                  <span>Zone / Ward:</span>
+                  <span>Municipal Jurisdiction:</span>
                 </div>
                 <p className="font-semibold text-foreground text-xs pl-4">
-                  {incident.ward || "Zone 4 - Central"}
+                  {incident.assignedAuthority?.name || incident.ward || "Zonal Municipal Desk"}
                 </p>
               </div>
 
@@ -696,9 +696,9 @@ export const IncidentDetailDialog: React.FC<IncidentDetailDialogProps> = ({
               </div>
 
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-500">Zone / Ward</span>
+                <span className="text-[10px] uppercase font-bold text-slate-500">Municipal Jurisdiction</span>
                 <p className="font-semibold text-slate-900">
-                  {incident.ward || "Zone 4 - Central"}
+                  {incident.assignedAuthority?.name || incident.ward || "Zonal Municipal Desk"}
                 </p>
               </div>
 

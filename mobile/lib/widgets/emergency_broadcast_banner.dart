@@ -110,7 +110,9 @@ class EmergencyBroadcastBanner extends StatelessWidget {
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        b.ward == 'all' ? 'All Pilot Wards' : b.ward,
+                        b.ward == 'all'
+                            ? 'Citywide Civic Alert'
+                            : b.ward.replaceAll(RegExp(r'Ward \d+ - |Zone \d+ - '), ''),
                         style: TextStyle(
                           fontSize: 10,
                           color: Colors.grey.shade700,

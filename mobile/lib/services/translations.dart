@@ -11,7 +11,7 @@ class AppTranslations {
     final bool hi = isHindi.value;
     switch (key) {
       case 'app_name':
-        return hi ? 'सिविक डेस्क' : 'CivicDesk';
+        return 'SHTCA';
       case 'app_subtitle':
         return hi ? 'लोक शिकायत एवं निवारण प्रणाली' : 'Civic Grievance & Redressal Platform';
       case 'emergency_sos':
@@ -23,7 +23,7 @@ class AppTranslations {
       case 'safety_feed':
         return hi ? 'शिकायत कतार' : 'Grievance Queue';
       case 'health_score':
-        return hi ? 'वार्ड नागरिक सेवा सूचकांक' : 'Ward Civic Health Index';
+        return hi ? 'नागरिक सेवा सूचकांक' : 'Civic Health Index';
       case 'rwa_dashboard':
         return hi ? 'अधिकारी नियंत्रण कक्ष' : 'Officer Console';
       case 'field_verified':
@@ -45,7 +45,7 @@ class AppTranslations {
       case 'department':
         return hi ? 'संबंधित विभाग' : 'Concerned Department';
       case 'ward':
-        return hi ? 'नगर निगम वार्ड' : 'Municipal Ward';
+        return hi ? 'परिक्षेत्र / स्थल' : 'Vicinity / Area';
       default:
         return key;
     }

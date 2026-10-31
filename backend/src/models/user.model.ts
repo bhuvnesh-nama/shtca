@@ -82,7 +82,7 @@ userSchema.methods.generateAccessToken = function (): string {
             name: this.name,
             role: this.role || "citizen",
         },
-        process.env.ACCESS_TOKEN_SECRET || "default_access_secret",
+        process.env.JWT_SECRET || process.env.ACCESS_TOKEN_SECRET || "default_access_secret",
         { expiresIn: "1d" }
     );
 };

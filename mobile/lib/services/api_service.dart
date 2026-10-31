@@ -42,13 +42,16 @@ class ApiService {
     return '$host${url.startsWith('/') ? '' : '/'}$url';
   }
 
-  // Fetch Nearby / Active Incidents
+  // Fetch Nearby / Active Incidents (Geospatial & Category Filtered)
   static Future<List<Incident>> fetchIncidents({
     String? category,
     String? status,
     String? search,
     String? officeId,
     String? ward,
+    double? latitude,
+    double? longitude,
+    double? radius,
   }) async {
     final queryParams = <String, String>{};
     if (category != null && category != 'all') queryParams['category'] = category;
@@ -58,6 +61,9 @@ class ApiService {
       queryParams['officeId'] = officeId;
     }
     if (ward != null && ward != 'all') queryParams['ward'] = ward;
+    if (latitude != null) queryParams['lat'] = latitude.toString();
+    if (longitude != null) queryParams['lng'] = longitude.toString();
+    if (radius != null) queryParams['radius'] = radius.toString();
 
     final uri = Uri.parse('$baseUrl/incidents').replace(queryParameters: queryParams);
 

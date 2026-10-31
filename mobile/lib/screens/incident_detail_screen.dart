@@ -123,7 +123,7 @@ class _IncidentDetailScreenState extends State<IncidentDetailScreen> {
   void _handleShare() {
     if (_incident == null) return;
     final text =
-        '🏛️ [नगर सेवा / NagarSeva Grievance] ${_incident!.complaintRef ?? ''}\nविभाग: ${_incident!.department}\nविषय: ${_incident!.title}\nवार्ड: ${_incident!.ward} • ${_incident!.landmark ?? _incident!.address}\nस्थिति: ${AppTranslations.statusName(_incident!.status)}';
+        '🏛️ [नागरिक शिकायत / Civic Grievance] ${_incident!.complaintRef ?? ''}\nविभाग: ${_incident!.department}\nविषय: ${_incident!.title}\nस्थल: ${_incident!.landmark ?? _incident!.address}\nस्थिति: ${AppTranslations.statusName(_incident!.status)}';
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Grievance details copied to clipboard!')),

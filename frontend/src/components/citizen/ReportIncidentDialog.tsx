@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { CATEGORIES_CONFIG, type IncidentCategory, type IncidentItem } from "@/types/incident";
+import { resolveNearestJurisdiction } from "@/types/jurisdiction";
 import { incidentService } from "@/services/incidentService";
 import { toast } from "sonner";
 import {
@@ -29,6 +30,7 @@ import {
   Check,
   Layers,
   Sparkles,
+  Building2,
 } from "lucide-react";
 
 interface ReportIncidentDialogProps {
@@ -69,7 +71,6 @@ export const ReportIncidentDialog: React.FC<ReportIncidentDialogProps> = ({
   onTriggerMapPinSelect,
 }) => {
   const [category, setCategory] = useState<IncidentCategory>("power_cut");
-  const [ward, setWard] = useState("Ward 42 - Preet Vihar, East Zone");
   const [pincode, setPincode] = useState("110092");
   const [landmark, setLandmark] = useState("");
   const [complainantPhone, setComplainantPhone] = useState("");
@@ -77,12 +78,17 @@ export const ReportIncidentDialog: React.FC<ReportIncidentDialogProps> = ({
   const [description, setDescription] = useState("");
   const [address, setAddress] = useState("");
   const [coords, setCoords] = useState<[number, number]>(
-    initialLocation || [20.5937, 78.9629]
+    initialLocation || [26.86081, 75.81854]
   );
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Auto-resolve nearest municipal authority jurisdiction based on GPS coords
+  const assignedJurisdiction = useMemo(() => {
+    return resolveNearestJurisdiction(coords[0], coords[1]);
+  }, [coords]);
 
   // Nearby similar issue detection state
   const [duplicateIncident, setDuplicateIncident] = useState<IncidentItem | null>(null);
@@ -187,8 +193,6 @@ export const ReportIncidentDialog: React.FC<ReportIncidentDialogProps> = ({
       return;
     }
 
-    const forceNew = duplicateIncident ? !linkToExisting : false;
-
     setIsSubmitting(true);
     try {
       const res = await incidentService.submitReport({
@@ -198,18 +202,18 @@ export const ReportIncidentDialog: React.FC<ReportIncidentDialogProps> = ({
         latitude: coords[0],
         longitude: coords[1],
         address: address.trim(),
-        ward,
+        ward: assignedJurisdiction.desk.id,
         pincode: pincode.trim(),
         landmark: landmark.trim(),
         complainantPhone: complainantPhone.trim(),
         media: mediaUrls,
-        forceNew,
+        forceNew: true,
       });
 
       if (res?.isNewIncident === false) {
-        toast.success("Report linked to existing nearby incident!");
+        toast.success("Report registered with authority desk!");
       } else {
-        const ref = res?.incident?.complaintRef || "MCD-2026-XXXX";
+        const ref = res?.incident?.complaintRef || "CIVIC-2026-XXXX";
         toast.success(`Grievance registered successfully! Ref: ${ref}`);
       }
 
@@ -247,21 +251,23 @@ export const ReportIncidentDialog: React.FC<ReportIncidentDialogProps> = ({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-          {/* Ward and Department Info */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-            <div className="space-y-1">
-              <Label className="text-xs font-semibold">Zone / Ward</Label>
-              <select
-                value={ward}
-                onChange={(e) => setWard(e.target.value)}
-                className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs truncate"
-              >
-                <option value="Ward 42 - Preet Vihar, East Zone">Zone 1 - East (Preet Vihar)</option>
-                <option value="Ward 18 - Connaught Place, Central Zone">Zone 2 - Central (Connaught Place)</option>
-                <option value="Ward 24 - Mayur Vihar, East Zone">Zone 3 - East (Mayur Vihar)</option>
-                <option value="Ward 35 - Karol Bagh, Central Zone">Zone 4 - Central (Karol Bagh)</option>
-                <option value="Ward 14 - Anand Vihar, East Zone">Zone 5 - East (Anand Vihar)</option>
-              </select>
+          {/* Municipal Jurisdiction Routing & Contact */}
+          <div className="space-y-2">
+            <div className="p-2.5 rounded-lg border border-blue-200/80 bg-blue-50/60 dark:bg-blue-950/20 dark:border-blue-900/40">
+              <div className="flex items-center justify-between text-xs font-medium text-foreground mb-1">
+                <span className="flex items-center gap-1.5 text-blue-700 dark:text-blue-400 font-semibold">
+                  <Building2 className="size-3.5" /> Auto-Dispatched Municipal Office
+                </span>
+                <span className="text-[10px] text-muted-foreground font-mono bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-200 px-1.5 py-0.5 rounded">
+                  {assignedJurisdiction.distanceKm < 9999 ? `~${assignedJurisdiction.distanceKm} km away` : "Auto Resolved"}
+                </span>
+              </div>
+              <div className="text-xs font-medium text-foreground">
+                {assignedJurisdiction.desk.name} ({assignedJurisdiction.desk.office})
+              </div>
+              <div className="text-[11px] text-muted-foreground mt-0.5">
+                Jurisdiction: {assignedJurisdiction.desk.areaLabel} • Zonal Node: <code className="font-mono text-[10px] bg-muted px-1 py-0.2 rounded">{assignedJurisdiction.desk.id}</code>
+              </div>
             </div>
 
             <div className="space-y-1">
@@ -270,7 +276,7 @@ export const ReportIncidentDialog: React.FC<ReportIncidentDialogProps> = ({
                 placeholder="e.g. 9810XXXXXX"
                 value={complainantPhone}
                 onChange={(e) => setComplainantPhone(e.target.value)}
-                className="h-8 text-xs"
+                className="h-8 text-xs font-mono"
               />
             </div>
           </div>

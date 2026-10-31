@@ -1,19 +1,19 @@
 {
-  "name": "HyperNet - Neighbourhood Safety Network",
-  "short_name": "HyperNet",
-  "description": "Hyperlocal citizen incident reporting, verification, and neighbourhood safety network",
+  "name": "SHTCA - Civic Grievance & Redressal Portal",
+  "short_name": "SHTCA",
+  "description": "Civic grievance reporting, verification, and municipal redressal network",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#1d4ed8",
   "icons": [
     {
-      "src": "/contact-us-illustration.png",
+      "src": "/logo.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/contact-us-illustration.png",
+      "src": "/logo.png",
       "sizes": "512x512",
       "type": "image/png"
     }

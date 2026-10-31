@@ -27,7 +27,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Spinner } from "@/components/ui/spinner";
-import { Mail, Lock, Building2, ArrowRight } from "lucide-react";
+import { Mail, Lock, ArrowRight } from "lucide-react";
 
 interface AuthErrorPayload {
   message?: string;
@@ -81,16 +81,18 @@ function Login() {
             <div className="flex-1 bg-white" />
             <div className="flex-1 bg-[#138808]" />
           </div>
-          <Link to="/" className="flex items-center gap-2 group">
-            <div className="flex size-11 items-center justify-center rounded-xl bg-[#003366] text-white shadow-md group-hover:scale-105 transition-transform">
-              <Building2 className="size-6 text-amber-400" />
-            </div>
+          <Link to="/" className="flex items-center gap-2.5 group">
+            <img
+              src="/logo.png"
+              alt="SHTCA Logo"
+              className="size-11 rounded-xl object-contain bg-white p-1 border border-border shadow-md group-hover:scale-105 transition-transform"
+            />
             <div className="text-left">
               <span className="font-bold text-xl tracking-tight text-foreground block leading-tight">
-                CivicDesk <span className="text-[#003366] dark:text-blue-400">Portal</span>
+                SHTCA <span className="text-[#003366] dark:text-blue-400">Portal</span>
               </span>
               <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">
-                Citizen Grievance Redressal
+                Civic Grievance Redressal
               </span>
             </div>
           </Link>

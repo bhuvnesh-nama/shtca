@@ -38,7 +38,7 @@ export function calculateHaversineDistance(
 
 // Registered Multi-Tier Governance Authority Registry
 export const AUTHORITY_REGISTRY: AuthorityNode[] = [
-  // TIER 1: Apex Central Municipal Public Works & Highway Commissionerate (Highest Authority)
+  // TIER 1: Apex Central Municipal Public Works & Highway Commissionerates
   {
     id: "AUTH-APEX-01",
     name: "Central Municipal Commissionerate & PWD Apex Division",
@@ -51,7 +51,19 @@ export const AUTHORITY_REGISTRY: AuthorityNode[] = [
     jurisdictionType: "Arterial Infrastructure",
     contactNumber: "011-23225000",
   },
-  // TIER 2: Zonal / Ward Municipal Divisions
+  {
+    id: "AUTH-APEX-RAJASTHAN",
+    name: "Rajasthan Urban Infrastructure & Local Bodies Directorate",
+    office: "Directorate of Local Bodies (DLB), Tonk Road, Jaipur",
+    tier: "apex_central",
+    level: 1,
+    latitude: 26.8950,
+    longitude: 75.8050,
+    jurisdictionRadiusKm: 60.0,
+    jurisdictionType: "Arterial Infrastructure",
+    contactNumber: "0141-2223800",
+  },
+  // TIER 2: Zonal / Ward Municipal Divisions - Delhi NCR
   {
     id: "AUTH-ZONE-EAST",
     name: "East Zone Municipal Public Works Division",
@@ -88,7 +100,44 @@ export const AUTHORITY_REGISTRY: AuthorityNode[] = [
     jurisdictionType: "Zonal Sector Public Works",
     contactNumber: "011-26514003",
   },
+  // TIER 2: Zonal / Ward Municipal Divisions - Jaipur
+  {
+    id: "AUTH-ZONE-JAIPUR-MALVIYA",
+    name: "Jaipur Greater Municipal Corporation (Malviya Nagar & Jagatpura Zone)",
+    office: "Zonal Municipal Engineering Center, Calgiri Marg, Malviya Nagar, Jaipur",
+    tier: "zonal_ward",
+    level: 2,
+    latitude: 26.8530,
+    longitude: 75.8190,
+    jurisdictionRadiusKm: 15.0,
+    jurisdictionType: "Zonal Sector Public Works",
+    contactNumber: "0141-2720101",
+  },
+  {
+    id: "AUTH-ZONE-JAIPUR-HERITAGE",
+    name: "Jaipur Heritage Municipal Corporation (Central & Old City Zone)",
+    office: "Heritage Municipal Headquarters, Jaleb Chowk, Badi Chaupar, Jaipur",
+    tier: "zonal_ward",
+    level: 2,
+    latitude: 26.9239,
+    longitude: 75.8267,
+    jurisdictionRadiusKm: 15.0,
+    jurisdictionType: "Zonal Sector Public Works",
+    contactNumber: "0141-2601202",
+  },
   // TIER 3: Local Resident Welfare Associations (RWA) & Housing Societies (Micro Geofence)
+  {
+    id: "AUTH-RWA-JAIPUR-JLP",
+    name: "Jawahar Circle & Malviya Enclave Residents Welfare Association",
+    office: "Community Estate Center, Sector 3, Near Jawahar Circle, Jaipur",
+    tier: "local_society",
+    level: 3,
+    latitude: 26.8480,
+    longitude: 75.8010,
+    jurisdictionRadiusKm: 1.0,
+    jurisdictionType: "Housing Society & Colony",
+    contactNumber: "+91-9414012345",
+  },
   {
     id: "AUTH-RWA-PREET",
     name: "Preet Vihar Resident Welfare Association (RWA Cell)",
@@ -169,18 +218,29 @@ export function resolveNearestAuthority(
     severity === "critical";
 
   if (isArterialOrMajor) {
-    const apex = AUTHORITY_REGISTRY.find((a) => a.tier === "apex_central") || AUTHORITY_REGISTRY[0];
-    const dist = calculateHaversineDistance(latitude, longitude, apex.latitude, apex.longitude);
-    return {
-      officeId: apex.id,
-      tier: "apex_central",
-      name: apex.name,
-      office: apex.office,
-      jurisdictionType: apex.jurisdictionType,
-      distanceKm: dist,
-      routingReason: "Arterial Infrastructure & High-Impact Public Works: Dispatched to Apex Central Directorate",
-      contactNumber: apex.contactNumber,
-    };
+    const apexNodes = AUTHORITY_REGISTRY.filter((a) => a.tier === "apex_central");
+    let closestApex = apexNodes[0];
+    let minApexDist = Infinity;
+    for (const node of apexNodes) {
+      const d = calculateHaversineDistance(latitude, longitude, node.latitude, node.longitude);
+      if (d < minApexDist) {
+        minApexDist = d;
+        closestApex = node;
+      }
+    }
+
+    if (minApexDist <= (closestApex.jurisdictionRadiusKm || 60)) {
+      return {
+        officeId: closestApex.id,
+        tier: "apex_central",
+        name: closestApex.name,
+        office: closestApex.office,
+        jurisdictionType: closestApex.jurisdictionType,
+        distanceKm: minApexDist,
+        routingReason: `Arterial Infrastructure & High-Impact Public Works: Dispatched to Regional Apex Directorate (${minApexDist} km away)`,
+        contactNumber: closestApex.contactNumber,
+      };
+    }
   }
 
   // 2. Search for Nearest Local Society / RWA Admin (Tier 3) within Geofence

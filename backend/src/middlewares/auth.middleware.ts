@@ -4,6 +4,8 @@ import User from "../models/user.model";
 import type { Request, Response, NextFunction } from "express";
 import ApiError from "../utils/ApiError";
 
+const getJwtSecret = () => process.env.JWT_SECRET || process.env.ACCESS_TOKEN_SECRET || "default_access_secret";
+
 const authMiddleware = asyncHandler(async (req: Request, _res: Response, next: NextFunction) => {
   try {
     const token = req.cookies?.accessToken || req.header("Authorization")?.replace("Bearer ", "");
@@ -12,7 +14,7 @@ const authMiddleware = asyncHandler(async (req: Request, _res: Response, next: N
       throw new ApiError(401, "Unauthorized request");
     }
 
-    const decodedToken: any = jwt.verify(token, process.env.JWT_SECRET!);
+    const decodedToken: any = jwt.verify(token, getJwtSecret());
 
     const user = await User.findById(decodedToken?._id).select("-password -refreshToken");
     if (!user) {
@@ -33,7 +35,7 @@ const optionalAuthMiddleware = asyncHandler(async (req: Request, _res: Response,
       return next();
     }
 
-    const decodedToken: any = jwt.verify(token, process.env.JWT_SECRET!);
+    const decodedToken: any = jwt.verify(token, getJwtSecret());
     const user = await User.findById(decodedToken?._id).select("-password -refreshToken");
     if (user) {
       req.user = user;

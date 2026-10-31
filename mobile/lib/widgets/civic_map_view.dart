@@ -9,12 +9,14 @@ class CivicMapView extends StatefulWidget {
   final List<Incident> incidents;
   final Function(Incident) onIncidentTap;
   final VoidCallback? onRefresh;
+  final LatLng? userLocation;
 
   const CivicMapView({
     super.key,
     required this.incidents,
     required this.onIncidentTap,
     this.onRefresh,
+    this.userLocation,
   });
 
   @override
@@ -24,15 +26,28 @@ class CivicMapView extends StatefulWidget {
 class _CivicMapViewState extends State<CivicMapView> {
   final MapController _mapController = MapController();
   Incident? _selectedIncident;
-  static const LatLng _delhiCenter = LatLng(28.6139, 77.2090);
+  static const LatLng _defaultCenter = LatLng(26.86081, 75.81854);
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final loc = widget.userLocation ?? _defaultCenter;
+      _mapController.move(loc, 14.5);
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant CivicMapView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.userLocation != null && widget.userLocation != oldWidget.userLocation) {
+      _mapController.move(widget.userLocation!, 14.5);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    LatLng center = _delhiCenter;
-    if (widget.incidents.isNotEmpty) {
-      final first = widget.incidents.first;
-      center = LatLng(first.location.latitude, first.location.longitude);
-    }
+    final LatLng center = widget.userLocation ?? _defaultCenter;
 
     return Stack(
       children: [
@@ -40,7 +55,7 @@ class _CivicMapViewState extends State<CivicMapView> {
           mapController: _mapController,
           options: MapOptions(
             initialCenter: center,
-            initialZoom: 12.0,
+            initialZoom: 14.5,
             minZoom: 5.0,
             maxZoom: 18.0,
             onTap: (_, __) {
@@ -55,7 +70,34 @@ class _CivicMapViewState extends State<CivicMapView> {
               userAgentPackageName: 'com.shtca.portal',
             ),
             MarkerLayer(
-              markers: widget.incidents.map((inc) {
+              markers: [
+                if (widget.userLocation != null)
+                  Marker(
+                    point: widget.userLocation!,
+                    width: 32,
+                    height: 32,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withValues(alpha: 0.25),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: Container(
+                          width: 16,
+                          height: 16,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2563EB),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2.5),
+                            boxShadow: const [
+                              BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 1)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ...widget.incidents.map((inc) {
                 final pos = LatLng(inc.location.latitude, inc.location.longitude);
                 final isSelected = _selectedIncident?.id == inc.id;
                 final markerColor = _getMarkerColor(inc.status);
@@ -96,8 +138,9 @@ class _CivicMapViewState extends State<CivicMapView> {
                     ),
                   ),
                 );
-              }).toList(),
-            ),
+              }),
+            ],
+          ),
           ],
         ),
 
@@ -140,10 +183,10 @@ class _CivicMapViewState extends State<CivicMapView> {
             backgroundColor: Colors.white,
             foregroundColor: AppTheme.govAshokaBlue,
             onPressed: () {
-              _mapController.move(_delhiCenter, 12.0);
+              _mapController.move(center, 13.0);
               setState(() => _selectedIncident = null);
             },
-            tooltip: 'दिल्ली केंद्र पर केंद्रित करें (Center Map)',
+            tooltip: 'मानचित्र पुनः केंद्रित करें (Recenter Map)',
             child: const Icon(Icons.my_location, size: 20),
           ),
         ),
@@ -267,7 +310,7 @@ class _CivicMapViewState extends State<CivicMapView> {
                   child: Text(
                     inc.address.isNotEmpty
                         ? inc.address
-                        : '${inc.ward} • $categoryLabel',
+                        : (inc.landmark?.isNotEmpty == true ? inc.landmark! : categoryLabel),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontSize: 11.5, color: AppTheme.textMuted),

@@ -93,9 +93,10 @@ export const submitReport = asyncHandler(async (req: Request, res: Response) => 
   }
 
   const mediaUrls: string[] = Array.isArray(media) ? media : [];
-  const resolvedDept = department || DEPARTMENT_MAP[category] || "सामान्य नागरिक शिकायत प्रकोष्ठ (General Civic Grievance Cell)";
-  const resolvedWard = ward || "Ward 42 - Anand Vihar Zone";
-  const resolvedPincode = pincode || "110092";
+  const assignedAuth = resolveNearestAuthority(lat, lng, category, "medium", title, description);
+  const resolvedDept = department || DEPARTMENT_MAP[category] || "General Civic Redressal Cell";
+  const resolvedWard = ward || assignedAuth.name || assignedAuth.office;
+  const resolvedPincode = pincode || (lat >= 26.0 && lat <= 27.5 && lng >= 75.0 && lng <= 76.5 ? "302017" : "110092");
   const resolvedLandmark = landmark || "";
   const resolvedReporter = reporterName || req.user?.name || "Resident Complainant";
 
@@ -122,44 +123,34 @@ export const submitReport = asyncHandler(async (req: Request, res: Response) => 
 
   await report.save();
 
-  // 2. Link with nearby open incident of same category within 200m (unless user explicitly forced new)
+  // 2. Incident Creation:
+  // If user explicitly chose to merge into an existing incident (via linkToIncidentId):
   let incident = null;
-  if (!forceNew) {
-    incident = await Incident.findOne({
-      category,
-      status: { $nin: ["resolved_verified", "closed_unverified", "rejected"] },
-      location: {
-        $near: {
-          $geometry: {
-            type: "Point",
-            coordinates: [lng, lat],
-          },
-          $maxDistance: 200,
-        },
-      },
-    });
+  let isNewIncident = true;
+
+  if (req.body.linkToIncidentId && !forceNew) {
+    incident = await Incident.findById(req.body.linkToIncidentId);
+    if (incident) {
+      isNewIncident = false;
+      incident.reports.push(report._id as any);
+      incident.reportCount = incident.reports.length;
+      incident.upvotes += 1;
+      incident.confirmations = incident.upvotes;
+      if (mediaUrls.length > 0) {
+        incident.media = Array.from(new Set([...incident.media, ...mediaUrls]));
+      }
+      await incident.save();
+      report.incident = incident._id as any;
+      report.status = "linked";
+      await report.save();
+    }
   }
 
-  let isNewIncident = false;
-
-  if (incident) {
-    // Link with existing incident
-    incident.reports.push(report._id as any);
-    incident.reportCount = incident.reports.length;
-    incident.upvotes += 1;
-    incident.confirmations = incident.upvotes;
-    if (mediaUrls.length > 0) {
-      incident.media = Array.from(new Set([...incident.media, ...mediaUrls]));
-    }
-    await incident.save();
-    report.incident = incident._id as any;
-    report.status = "linked";
-    await report.save();
-  } else {
-    // Create new Incident
-    isNewIncident = true;
-    const generatedRef = "MCD-" + new Date().getFullYear() + "-" + Math.floor(10000 + Math.random() * 90000);
-    const assignedAuth = resolveNearestAuthority(lat, lng, category, "medium", title, description);
+  // Always create a new tracked Incident ticket when citizen lodges a grievance
+  if (isNewIncident) {
+    const isJaipur = lat >= 26.0 && lat <= 27.5 && lng >= 75.0 && lng <= 76.5;
+    const prefix = isJaipur ? "JPR-" : "CIVIC-";
+    const generatedRef = prefix + new Date().getFullYear() + "-" + Math.floor(10000 + Math.random() * 90000);
 
     incident = new Incident({
       title,

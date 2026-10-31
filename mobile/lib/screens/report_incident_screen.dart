@@ -1,8 +1,11 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import '../models/jurisdiction.dart';
+import '../services/location_service.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 
@@ -19,22 +22,41 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
   final _descController = TextEditingController();
   final _addressController = TextEditingController();
   final _landmarkController = TextEditingController();
-  final _pincodeController = TextEditingController(text: '110092');
+  final _pincodeController = TextEditingController(text: '302017');
   final _phoneController = TextEditingController();
+  final MapController _mapController = MapController();
+  bool _isLocatingGps = false;
 
   String _selectedCategory = 'power_cut';
-  String _selectedWard = 'Ward 42 - Preet Vihar / Anand Vihar';
 
-  final List<String> _wards = [
-    'Ward 42 - Preet Vihar / Anand Vihar',
-    'Ward 18 - Connaught Place / Central',
-    'Ward 24 - Mayur Vihar Phase 1',
-    'Ward 35 - Karol Bagh Zone',
-    'Ward 14 - Anand Vihar ISBT',
-  ];
+  double _latitude = 26.86081;
+  double _longitude = 75.81854;
 
-  double _latitude = 28.6304;
-  double _longitude = 77.2177;
+  LocalJurisdictionOffice get _nearestOffice {
+    LocalJurisdictionOffice nearest = localJurisdictionOffices.firstWhere(
+      (o) => o.tier != 'apex_central',
+      orElse: () => localJurisdictionOffices[0],
+    );
+    double minDist = double.infinity;
+    for (final off in localJurisdictionOffices) {
+      if (off.tier == 'apex_central') continue;
+      final dLat = (off.latitude - _latitude) * 3.141592653589793 / 180;
+      final dLon = (off.longitude - _longitude) * 3.141592653589793 / 180;
+      final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+          math.cos(_latitude * 3.141592653589793 / 180) *
+              math.cos(off.latitude * 3.141592653589793 / 180) *
+              math.sin(dLon / 2) *
+              math.sin(dLon / 2);
+      final dist = 6371 * 2 * math.asin(math.sqrt(a));
+      if (dist < minDist) {
+        minDist = dist;
+        nearest = off;
+      }
+    }
+    return nearest;
+  }
+
+  String get _selectedWard => _nearestOffice.name;
   final List<String> _attachedMedia = [];
 
   // Similar issue detection state
@@ -87,7 +109,26 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
   @override
   void initState() {
     super.initState();
+    _initGpsLocation();
     _triggerDuplicateCheck();
+  }
+
+  Future<void> _initGpsLocation() async {
+    setState(() => _isLocatingGps = true);
+    try {
+      final pos = await LocationService.determinePosition();
+      if (mounted) {
+        setState(() {
+          _latitude = pos.latitude;
+          _longitude = pos.longitude;
+          _isLocatingGps = false;
+        });
+        _mapController.move(pos, 15.5);
+        _triggerDuplicateCheck();
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLocatingGps = false);
+    }
   }
 
   @override
@@ -187,7 +228,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
             const SizedBox(height: 12),
             _receiptRow('संबंधित विभाग:', department),
             const SizedBox(height: 6),
-            _receiptRow('नगर निगम वार्ड:', _selectedWard),
+            _receiptRow('प्राधिकरण डेस्क:', _nearestOffice.shortName),
             const SizedBox(height: 6),
             _receiptRow('स्थल:', _landmarkController.text.isNotEmpty ? _landmarkController.text : _addressController.text),
             const SizedBox(height: 10),
@@ -241,7 +282,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
 
     setState(() => _isSubmitting = true);
     try {
-      final forceNew = _duplicateIncident != null ? !_linkToExisting : false;
+      const forceNew = true;
 
       final res = await ApiService.submitReport(
         category: _selectedCategory,
@@ -259,9 +300,9 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
       );
 
       if (!mounted) return;
-      final trackingRef = res['data']?['complaintRef'] ??
-          res['data']?['incident']?['complaintRef'] ??
-          'MCD-2026-${DateTime.now().millisecondsSinceEpoch % 10000}';
+      final trackingRef = res['data']?['incident']?['complaintRef'] ??
+          res['data']?['complaintRef'] ??
+          'JPR-2026-${DateTime.now().millisecondsSinceEpoch % 10000}';
       final department = AppTheme.getDepartmentName(_selectedCategory);
 
       _showAcknowledgmentReceipt(trackingRef, department);
@@ -401,33 +442,77 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Municipal Ward Dropdown
-              const Text(
-                'नगर निगम वार्ड / Municipal Ward *',
-                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppTheme.textDark),
-              ),
-              const SizedBox(height: 6),
+              // Auto-Assigned Municipal Jurisdiction
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.borderLight),
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFBFDBFE)),
                 ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedWard,
-                    isExpanded: true,
-                    items: _wards.map((w) {
-                      return DropdownMenuItem<String>(
-                        value: w,
-                        child: Text(w, style: const TextStyle(fontSize: 12.5, color: AppTheme.textDark)),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) setState(() => _selectedWard = val);
-                    },
-                  ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryBlue,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.account_balance_rounded, color: Colors.white, size: 18),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  _nearestOffice.name,
+                                  style: const TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF1E3A8A),
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFDBEAFE),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Text(
+                                  'Auto-Assigned',
+                                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF1D4ED8)),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            _nearestOffice.office,
+                            style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                          ),
+                          const SizedBox(height: 4),
+                          const Row(
+                            children: [
+                              Icon(Icons.check_circle_rounded, size: 13, color: Color(0xFF16A34A)),
+                              SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  'GPS द्वारा निकटतम प्राधिकरण को स्वचालित आवंटित',
+                                  style: TextStyle(fontSize: 10.5, color: Color(0xFF16A34A), fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 14),
@@ -587,6 +672,34 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                           style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textDark),
                         ),
                         const Spacer(),
+                        InkWell(
+                          onTap: _isLocatingGps ? null : _initGpsLocation,
+                          borderRadius: BorderRadius.circular(6),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                            margin: const EdgeInsets.only(right: 6),
+                            decoration: BoxDecoration(
+                              color: AppTheme.govAshokaBlue.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: AppTheme.govAshokaBlue.withValues(alpha: 0.2)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  _isLocatingGps ? Icons.hourglass_top_rounded : Icons.my_location_rounded,
+                                  size: 12,
+                                  color: AppTheme.govAshokaBlue,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _isLocatingGps ? 'Locating...' : 'Current GPS',
+                                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.govAshokaBlue),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
@@ -611,6 +724,7 @@ class _ReportIncidentScreenState extends State<ReportIncidentScreen> {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
                         child: FlutterMap(
+                          mapController: _mapController,
                           options: MapOptions(
                             initialCenter: LatLng(_latitude, _longitude),
                             initialZoom: 14.0,

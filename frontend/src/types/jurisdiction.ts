@@ -33,6 +33,70 @@ export const LOCAL_JURISDICTION_OFFICES: LocalOfficeJurisdiction[] = [
     icon: "🏛️",
   },
   {
+    id: "AUTH-APEX-RAJASTHAN",
+    name: "Rajasthan Urban Infrastructure & DLB Directorate",
+    shortName: "Rajasthan State Apex",
+    tier: "apex_central",
+    tierBadge: "Tier 1: Apex State",
+    office: "Directorate of Local Bodies (DLB), Tonk Road, Jaipur",
+    areaLabel: "Jaipur Metropolitan & State Urban Core",
+    center: [26.8950, 75.8050],
+    zoom: 12,
+    radiusKm: 60.0,
+    contactNumber: "0141-2223800",
+    zoneKeywords: ["rajasthan", "dlb", "jaipur"],
+    governingBody: "Department of Local Self Government, Rajasthan",
+    icon: "🏛️",
+  },
+  {
+    id: "AUTH-ZONE-JAIPUR-MALVIYA",
+    name: "Jaipur Greater Municipal Corporation (Malviya Nagar & Jagatpura Zone)",
+    shortName: "Jaipur Greater (Malviya Nagar)",
+    tier: "zonal_ward",
+    tierBadge: "Tier 2: Zonal Ward",
+    office: "Zonal Municipal Engineering Center, Calgiri Marg, Malviya Nagar, Jaipur",
+    areaLabel: "Malviya Nagar, Jagatpura, JLN Marg & Sanganer",
+    center: [26.8530, 75.8190],
+    zoom: 14,
+    radiusKm: 15.0,
+    contactNumber: "0141-2720101",
+    zoneKeywords: ["jaipur", "malviya nagar", "jagatpura", "jln marg", "calgiri", "gaurav tower", "jawahar circle", "sanganer"],
+    governingBody: "Jaipur Greater Nagar Nigam (JMC Greater)",
+    icon: "🏢",
+  },
+  {
+    id: "AUTH-ZONE-JAIPUR-HERITAGE",
+    name: "Jaipur Heritage Municipal Corporation (Central & Old City Zone)",
+    shortName: "Jaipur Heritage Division",
+    tier: "zonal_ward",
+    tierBadge: "Tier 2: Zonal Ward",
+    office: "Heritage Municipal Headquarters, Jaleb Chowk, Badi Chaupar, Jaipur",
+    areaLabel: "Walled Pink City, MI Road, C-Scheme & Civil Lines",
+    center: [26.9239, 75.8267],
+    zoom: 14,
+    radiusKm: 15.0,
+    contactNumber: "0141-2601202",
+    zoneKeywords: ["heritage", "badi chaupar", "mi road", "c-scheme", "civil lines", "pink city", "chhoti chaupar", "sindhi camp"],
+    governingBody: "Jaipur Heritage Nagar Nigam (JMC Heritage)",
+    icon: "🏢",
+  },
+  {
+    id: "AUTH-RWA-JAIPUR-JLP",
+    name: "Jawahar Circle & Malviya Enclave Residents Welfare Association",
+    shortName: "Jawahar Circle RWA",
+    tier: "local_society",
+    tierBadge: "Tier 3: Colony RWA",
+    office: "Community Estate Center, Sector 3, Near Jawahar Circle, Jaipur",
+    areaLabel: "Jawahar Circle & Sector 1-4 Enclave",
+    center: [26.8480, 75.8010],
+    zoom: 16,
+    radiusKm: 1.0,
+    contactNumber: "+91-9414012345",
+    zoneKeywords: ["jawahar circle", "patrika gate", "malviya enclave", "sector 3", "sector 4"],
+    governingBody: "Resident Welfare Association (RWA Cell)",
+    icon: "🏡",
+  },
+  {
     id: "AUTH-ZONE-EAST",
     name: "East Zone Municipal Public Works Division",
     shortName: "East Zone Division",
@@ -129,4 +193,32 @@ export const LOCAL_JURISDICTION_OFFICES: LocalOfficeJurisdiction[] = [
     icon: "🏡",
   },
 ];
+
+export function resolveNearestJurisdiction(lat: number, lng: number): {
+  desk: LocalOfficeJurisdiction;
+  distanceKm: number;
+} {
+  let nearest = LOCAL_JURISDICTION_OFFICES.find((o) => o.tier !== "apex_central") || LOCAL_JURISDICTION_OFFICES[0];
+  let minDist = Infinity;
+  for (const off of LOCAL_JURISDICTION_OFFICES) {
+    if (off.tier === "apex_central") continue;
+    const dLat = ((off.center[0] - lat) * Math.PI) / 180;
+    const dLng = ((off.center[1] - lng) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat * Math.PI) / 180) *
+        Math.cos((off.center[0] * Math.PI) / 180) *
+        Math.sin(dLng / 2) *
+        Math.sin(dLng / 2);
+    const dist = 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    if (dist < minDist) {
+      minDist = dist;
+      nearest = off;
+    }
+  }
+  return {
+    desk: nearest,
+    distanceKm: Math.round(minDist * 10) / 10,
+  };
+}
 

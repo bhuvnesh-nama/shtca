@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -28,8 +28,18 @@ export const SosEmergencyDialog: React.FC<SosEmergencyDialogProps> = ({
   const [address, setAddress] = useState("Main Road Crossing / Civic Center Area");
   const [details, setDetails] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
+
+  useEffect(() => {
+    if (cooldownSeconds <= 0) return;
+    const timer = setInterval(() => {
+      setCooldownSeconds((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldownSeconds]);
 
   const handleTrigger = async () => {
+    if (isSubmitting || cooldownSeconds > 0) return;
     try {
       setIsSubmitting(true);
       let lat = userLocation ? userLocation[0] : 0;
@@ -56,6 +66,7 @@ export const SosEmergencyDialog: React.FC<SosEmergencyDialogProps> = ({
         details: details.trim() || undefined,
       });
 
+      setCooldownSeconds(60);
       toast.error(
         "🚨 EMERGENCY SOS BROADCASTED! Immediate priority alert sent to local authorities & emergency teams."
       );
@@ -140,7 +151,7 @@ export const SosEmergencyDialog: React.FC<SosEmergencyDialogProps> = ({
           <Button
             size="sm"
             onClick={handleTrigger}
-            disabled={isSubmitting}
+            disabled={isSubmitting || cooldownSeconds > 0}
             className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs gap-1.5 shadow-md hover:shadow-rose-500/20"
           >
             {isSubmitting ? (
@@ -148,7 +159,7 @@ export const SosEmergencyDialog: React.FC<SosEmergencyDialogProps> = ({
             ) : (
               <ShieldAlert className="size-3.5" />
             )}
-            BROADCAST SOS ALERT
+            {cooldownSeconds > 0 ? `ALERT ACTIVE (${cooldownSeconds}s)` : "BROADCAST SOS ALERT"}
           </Button>
         </div>
       </DialogContent>

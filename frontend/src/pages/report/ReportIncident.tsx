@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { CATEGORIES_CONFIG, type IncidentCategory, type IncidentItem } from "@/types/incident";
 import { incidentService } from "@/services/incidentService";
+import { LOCAL_JURISDICTION_OFFICES } from "@/types/jurisdiction";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -62,16 +63,27 @@ const DEPARTMENT_LOOKUP: Record<string, string> = {
   other: "General Civic Redressal Cell",
 };
 
-const MUNICIPAL_WARDS = [
-  "Ward 42 - Preet Vihar, East Zone",
-  "Ward 18 - Connaught Place, Central Zone",
-  "Ward 24 - Mayur Vihar, East Zone",
-  "Ward 35 - Karol Bagh, Central Zone",
-  "Ward 14 - Anand Vihar, East Zone",
-  "Ward 08 - Rohini, North-West Zone",
-  "Ward 55 - Lajpat Nagar, South Zone",
-  "Ward 61 - Dwarka Sector 6, South-West Zone",
-];
+function getNearestOffice(lat: number, lng: number) {
+  let nearest = LOCAL_JURISDICTION_OFFICES.find((o) => o.tier !== "apex_central") || LOCAL_JURISDICTION_OFFICES[0];
+  let minDist = Infinity;
+  for (const off of LOCAL_JURISDICTION_OFFICES) {
+    if (off.tier === "apex_central") continue;
+    const dLat = ((off.center[0] - lat) * Math.PI) / 180;
+    const dLng = ((off.center[1] - lng) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat * Math.PI) / 180) *
+        Math.cos((off.center[0] * Math.PI) / 180) *
+        Math.sin(dLng / 2) *
+        Math.sin(dLng / 2);
+    const dist = 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    if (dist < minDist) {
+      minDist = dist;
+      nearest = off;
+    }
+  }
+  return { office: nearest, distanceKm: Number(minDist.toFixed(1)) };
+}
 
 const getCategoryIcon = (category: IncidentCategory | string) => {
   switch (category) {
@@ -115,13 +127,19 @@ const ReportIncident: React.FC = () => {
 
   const paramLat = searchParams.get("lat");
   const paramLng = searchParams.get("lng");
-  const initialLat = paramLat && !isNaN(parseFloat(paramLat)) ? parseFloat(paramLat) : 28.6304;
-  const initialLng = paramLng && !isNaN(parseFloat(paramLng)) ? parseFloat(paramLng) : 77.2177;
+  const initialLat = paramLat && !isNaN(parseFloat(paramLat)) ? parseFloat(paramLat) : 26.86081;
+  const initialLng = paramLng && !isNaN(parseFloat(paramLng)) ? parseFloat(paramLng) : 75.81854;
+
+  const [coords, setCoords] = useState<[number, number]>([initialLat, initialLng]);
+
+  const nearestAuthority = React.useMemo(() => {
+    return getNearestOffice(coords[0], coords[1]);
+  }, [coords]);
 
   // Form State
   const [category, setCategory] = useState<IncidentCategory>("power_cut");
-  const [ward, setWard] = useState<string>("Ward 42 - Preet Vihar, East Zone");
-  const [pincode, setPincode] = useState<string>("110092");
+  const [ward, setWard] = useState<string>(nearestAuthority.office.name);
+  const [pincode, setPincode] = useState<string>("302017");
   const [landmark, setLandmark] = useState<string>("");
   const [address, setAddress] = useState<string>("");
   const [title, setTitle] = useState<string>("");
@@ -129,7 +147,9 @@ const ReportIncident: React.FC = () => {
   const [reporterName, setReporterName] = useState<string>("");
   const [complainantPhone, setComplainantPhone] = useState<string>("");
 
-  const [coords, setCoords] = useState<[number, number]>([initialLat, initialLng]);
+  useEffect(() => {
+    setWard(nearestAuthority.office.name);
+  }, [nearestAuthority]);
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
@@ -189,10 +209,11 @@ const ReportIncident: React.FC = () => {
       attributionControl: false,
     });
 
-    // CartoDB Voyager Google Maps-like clean tiles
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-      subdomains: "abcd",
-      maxZoom: 20,
+    // 100% Free OpenStreetMap Clean Tiles (No API key required, zero watermarks)
+    const tileUrl = import.meta.env.VITE_MAP_TILES_URL || "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+    L.tileLayer(tileUrl, {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors',
     }).addTo(map);
 
     const marker = L.marker(coords, { draggable: true }).addTo(map);
@@ -336,7 +357,6 @@ const ReportIncident: React.FC = () => {
       return;
     }
 
-    const forceNew = duplicateIncident ? !linkToExisting : false;
     const resolvedDept = DEPARTMENT_LOOKUP[category] || "General Civic Redressal Cell";
 
     setIsSubmitting(true);
@@ -355,11 +375,11 @@ const ReportIncident: React.FC = () => {
         reporterName: reporterName.trim() || undefined,
         complainantPhone: complainantPhone.trim() || undefined,
         media: mediaUrls,
-        forceNew,
+        forceNew: true,
       });
 
       const trackingRef =
-        res?.incident?.complaintRef || "MCD-2026-" + Math.floor(10000 + Math.random() * 90000);
+        res?.incident?.complaintRef || "JPR-2026-" + Math.floor(10000 + Math.random() * 90000);
 
       setSubmittedReceipt({
         trackingRef,
@@ -497,6 +517,18 @@ const ReportIncident: React.FC = () => {
                 className="w-full sm:flex-1 text-xs gap-1.5"
               >
                 <Printer className="size-3.5" /> Print Receipt
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSubmittedReceipt(null);
+                  setTitle("");
+                  setDescription("");
+                  setMediaUrls([]);
+                }}
+                className="w-full sm:flex-1 text-xs gap-1.5"
+              >
+                Lodge Another Grievance
               </Button>
               <Button
                 onClick={() => navigate("/")}
@@ -768,23 +800,28 @@ const ReportIncident: React.FC = () => {
                   </p>
                 </div>
 
-                {/* Ward Selection */}
-                <div className="space-y-1">
-                  <Label htmlFor="ward-select" className="text-xs font-semibold">
-                    Zone / Ward <span className="text-rose-500">*</span>
-                  </Label>
-                  <select
-                    id="ward-select"
-                    value={ward}
-                    onChange={(e) => setWard(e.target.value)}
-                    className="w-full h-9 px-3 rounded-md border border-input bg-background text-xs truncate"
-                  >
-                    {MUNICIPAL_WARDS.map((w) => (
-                      <option key={w} value={w}>
-                        {w}
-                      </option>
-                    ))}
-                  </select>
+                {/* Auto-Assigned Nearest Jurisdiction */}
+                <div className="rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/60 dark:bg-blue-950/40 p-3.5 flex items-start gap-3">
+                  <div className="size-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs font-bold text-sm">
+                    🏛️
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-bold text-foreground">
+                        {nearestAuthority.office.name}
+                      </span>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-200">
+                        {nearestAuthority.distanceKm} km away &bull; Nearest Authority
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {nearestAuthority.office.office} &bull; Hotline: {nearestAuthority.office.contactNumber}
+                    </p>
+                    <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium mt-1 flex items-center gap-1">
+                      <Check className="size-3.5" />
+                      Auto-routed from your GPS pin. No manual zone selection required.
+                    </p>
+                  </div>
                 </div>
 
                 {/* Landmark & Pincode */}

@@ -52,23 +52,18 @@ interface IncidentMapProps {
 type MapTheme = "streets" | "light" | "satellite";
 type MapMode = "pins" | "heatmap" | "hybrid";
 
-const cartoKey = import.meta.env.VITE_CARTO_API_KEY || "";
-const maptilerKey = import.meta.env.VITE_MAPTILER_API_KEY || "";
 const customTilesUrl = import.meta.env.VITE_MAP_TILES_URL || "";
 
 const getStreetsTileUrl = () => {
   if (customTilesUrl) return customTilesUrl;
-  if (maptilerKey) return `https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=${maptilerKey}`;
-  if (cartoKey) return `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?api_key=${cartoKey}`;
-  // Standard Free OpenStreetMap: 100% Free, Global Street Detail, No Watermark, No API Key Required
+  // 100% Free OpenStreetMap: Global Street Detail, No Watermark, No API Key Required
   return "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 };
 
 const getLightTileUrl = () => {
-  if (cartoKey) return `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?api_key=${cartoKey}`;
-  if (maptilerKey) return `https://api.maptiler.com/maps/dataviz-light/{z}/{x}/{y}.png?key=${maptilerKey}`;
-  // Clean Free Humanitarian OpenStreetMap: No Watermark, No Key Required
-  return "https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png";
+  if (customTilesUrl) return customTilesUrl;
+  // 100% Free OpenStreetMap: Global Street Detail, No Watermark, No API Key Required
+  return "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 };
 
 const TILE_CONFIGS: Record<MapTheme, { url: string; attribution: string; subdomains?: string; maxZoom: number }> = {
@@ -327,7 +322,6 @@ export const IncidentMap: React.FC<IncidentMapProps> = ({
   const [mapTheme, setMapTheme] = useState<MapTheme>("streets");
   const [isLocating, setIsLocating] = useState(false);
   const [internalCategory, setInternalCategory] = useState("all");
-  const hasCenteredInitiallyRef = useRef(false);
 
   const activeCategory = parentCategory !== undefined ? parentCategory : internalCategory;
 
@@ -360,8 +354,8 @@ export const IncidentMap: React.FC<IncidentMapProps> = ({
   useEffect(() => {
     if (!mapContainerRef.current || mapInstanceRef.current) return;
 
-    const initialCenter: [number, number] = userLocation || [20.5937, 78.9629];
-    const initialZoom = userLocation ? 14 : 5;
+    const initialCenter: [number, number] = userLocation || [26.86081, 75.81854];
+    const initialZoom = userLocation ? 14 : 13;
 
     const map = L.map(mapContainerRef.current, {
       center: initialCenter,
@@ -460,29 +454,8 @@ export const IncidentMap: React.FC<IncidentMapProps> = ({
       }).addTo(map);
     }
 
-    if (!hasCenteredInitiallyRef.current) {
-      map.flyTo([lat, lng], 15, { animate: true, duration: 1.2 });
-      hasCenteredInitiallyRef.current = true;
-    }
+    map.flyTo([lat, lng], 15, { animate: true, duration: 1.0 });
   }, [userLocation]);
-
-  // Auto-fit bounds of actual incidents if user location not available
-  useEffect(() => {
-    const map = mapInstanceRef.current;
-    if (!map || userLocation || displayedIncidents.length === 0 || hasCenteredInitiallyRef.current) return;
-
-    const validCoords: [number, number][] = displayedIncidents
-      .filter((i) => i.location?.coordinates && i.location.coordinates.length >= 2)
-      .map((i) => [i.location.coordinates[1], i.location.coordinates[0]]);
-
-    if (validCoords.length > 0) {
-      const bounds = L.latLngBounds(validCoords);
-      if (bounds.isValid()) {
-        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
-        hasCenteredInitiallyRef.current = true;
-      }
-    }
-  }, [displayedIncidents, userLocation]);
 
   // Update picked location marker
   useEffect(() => {

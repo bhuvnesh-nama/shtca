@@ -288,9 +288,11 @@ class IncidentCard extends StatelessWidget {
                       const SizedBox(width: 3),
                       Expanded(
                         child: Text(
-                          '${incident.ward} • ${incident.landmark ?? incident.address}',
+                          incident.landmark != null && incident.landmark!.isNotEmpty
+                              ? '${incident.landmark} • ${incident.address}'
+                              : incident.address,
                           style: const TextStyle(
-                            fontSize: 10,
+                            fontSize: 10.5,
                             color: AppTheme.textMuted,
                             fontWeight: FontWeight.w500,
                           ),

@@ -8,7 +8,8 @@ import '../widgets/incident_card.dart';
 import '../widgets/emergency_broadcast_banner.dart';
 import 'report_incident_screen.dart';
 import 'incident_detail_screen.dart';
-import 'admin_dashboard_screen.dart';
+import '../services/location_service.dart';
+import 'package:latlong2/latlong.dart';
 import '../widgets/civic_map_view.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -23,20 +24,14 @@ class _HomeScreenState extends State<HomeScreen> {
   List<EmergencyBroadcast> _broadcasts = [];
   bool _isLoading = true;
   bool _isMapView = false;
+  bool _isTriggeringSos = false;
+  DateTime? _lastSosTriggered;
+  LatLng? _userLocation = LocationService.defaultJaipurCenter;
+  bool _isLocating = false;
 
   String _selectedCategory = 'all';
-  String _selectedWard = 'all';
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
-
-  final List<String> _wards = [
-    'all',
-    'Ward 42 - Preet Vihar / Anand Vihar',
-    'Ward 18 - Connaught Place / Central',
-    'Ward 24 - Mayur Vihar Phase 1',
-    'Ward 35 - Karol Bagh Zone',
-    'Ward 14 - Anand Vihar ISBT',
-  ];
 
   final List<Map<String, String>> _categories = [
     {'id': 'all', 'name': 'All Complaints'},
@@ -51,7 +46,23 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadData();
+    _initLocationAndLoad();
+  }
+
+  Future<void> _initLocationAndLoad() async {
+    setState(() => _isLocating = true);
+    try {
+      final pos = await LocationService.determinePosition();
+      if (mounted) {
+        setState(() {
+          _userLocation = pos;
+          _isLocating = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLocating = false);
+    }
+    await _loadData();
   }
 
   @override
@@ -63,21 +74,21 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
+      final pos = _userLocation ?? LocationService.currentLocation;
       final results = await Future.wait([
         ApiService.fetchIncidents(
           category: _selectedCategory != 'all' ? _selectedCategory : null,
           search: _searchQuery.isNotEmpty ? _searchQuery : null,
+          latitude: pos.latitude,
+          longitude: pos.longitude,
+          radius: 40000,
         ),
-        ApiService.fetchBroadcasts(ward: _selectedWard != 'all' ? _selectedWard : null),
+        ApiService.fetchBroadcasts(),
       ]);
 
       if (mounted) {
         setState(() {
-          List<Incident> raw = results[0] as List<Incident>;
-          if (_selectedWard != 'all') {
-            raw = raw.where((i) => i.ward == _selectedWard).toList();
-          }
-          _incidents = raw;
+          _incidents = results[0] as List<Incident>;
           _broadcasts = results[1] as List<EmergencyBroadcast>;
         });
       }
@@ -126,6 +137,20 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _triggerSosEmergency() {
+    if (_lastSosTriggered != null) {
+      final elapsed = DateTime.now().difference(_lastSosTriggered!).inSeconds;
+      if (elapsed < 60) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFFD97706),
+            content: Text('⚠️ आपात सूचना पहले से सक्रिय है। कृपया ${60 - elapsed} सेकंड प्रतीक्षा करें।\n(Alert already active. Please wait ${60 - elapsed}s)'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
+    }
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -151,12 +176,17 @@ class _HomeScreenState extends State<HomeScreen> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () async {
+              if (_isTriggeringSos) return;
               Navigator.pop(ctx);
+              _isTriggeringSos = true;
+              _lastSosTriggered = DateTime.now();
+
               try {
+                final pos = _userLocation ?? LocationService.currentLocation;
                 await ApiService.triggerSos(
-                  lat: 28.6304,
-                  lng: 77.2177,
-                  address: 'Municipal Ward Emergency Vicinity',
+                  lat: pos.latitude,
+                  lng: pos.longitude,
+                  address: 'GPS Pinpointed Citizen Emergency Vicinity',
                 );
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -173,11 +203,117 @@ class _HomeScreenState extends State<HomeScreen> {
                     SnackBar(content: Text('Failed to trigger SOS: $e')),
                   );
                 }
+              } finally {
+                _isTriggeringSos = false;
               }
             },
             child: const Text('पुष्टि करें (Confirm SOS)', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showNotificationsBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) {
+          final isHindi = AppTranslations.isHindi.value;
+          return Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.78,
+            ),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AppTheme.tricolorStrip(height: 3.5),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.notifications_active_outlined, color: AppTheme.govAshokaBlue, size: 22),
+                      const SizedBox(width: 8),
+                      Text(
+                        isHindi ? 'नागरिक सूचनाएं एवं आपात अलर्ट' : 'Civic Notifications & Alerts',
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppTheme.govAshokaBlue),
+                      ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: _broadcasts.isNotEmpty ? Colors.red.withValues(alpha: 0.1) : Colors.green.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          _broadcasts.isNotEmpty
+                              ? (isHindi ? '${_broadcasts.length} सक्रिय अलर्ट' : '${_broadcasts.length} Active')
+                              : (isHindi ? 'कोई अलर्ट नहीं' : 'All Clear'),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: _broadcasts.isNotEmpty ? Colors.red : Colors.green,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 20),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                if (_broadcasts.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(40),
+                    child: Column(
+                      children: [
+                        const Icon(Icons.check_circle_outline, size: 48, color: AppTheme.emerald),
+                        const SizedBox(height: 12),
+                        Text(
+                          isHindi ? 'कोई नई आपातकालीन सूचना नहीं है' : 'No Active Emergency Broadcasts',
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.textDark),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          isHindi
+                              ? 'आपके वार्ड में स्थिति सामान्य है। सभी नागरिक सेवाएं सुचारू रूप से कार्य कर रही हैं।'
+                              : 'Conditions in your municipal sector are normal. All public utilities are operating smoothly.',
+                          style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  Flexible(
+                    child: ListView(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      children: [
+                        EmergencyBroadcastBanner(
+                          broadcasts: _broadcasts,
+                          onDismiss: (id) {
+                            setState(() => _broadcasts.removeWhere((b) => b.id == id));
+                            setModalState(() {});
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -194,40 +330,58 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 AppTheme.tricolorStrip(height: 4),
                 AppBar(
-                  title: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: AppTheme.govAshokaBlue,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Text(
-                          '🏛️',
-                          style: TextStyle(fontSize: 16),
-                        ),
+                  title: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppTheme.borderLight),
+                      boxShadow: const [
+                        BoxShadow(color: Colors.black12, blurRadius: 3, offset: Offset(0, 1)),
+                      ],
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Image.asset(
+                      'assets/logo.png',
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: AppTheme.govAshokaBlue,
+                        padding: const EdgeInsets.all(4),
+                        child: const Text('🏛️', style: TextStyle(fontSize: 16)),
                       ),
-                      const SizedBox(width: 8),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            AppTranslations.get('app_name'),
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.govAshokaBlue,
-                            ),
-                          ),
-                          Text(
-                            AppTranslations.get('app_subtitle'),
-                            style: const TextStyle(fontSize: 9.5, color: AppTheme.textMuted),
-                          ),
-                        ],
-                      ),
-                    ],
+                    ),
                   ),
                   actions: [
+                    // Notification Bell with Badge
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.notifications_none_rounded, color: AppTheme.govAshokaBlue),
+                          onPressed: _showNotificationsBottomSheet,
+                          tooltip: 'सूचनाएं / Civic Alerts',
+                        ),
+                        if (_broadcasts.isNotEmpty)
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: Container(
+                              padding: const EdgeInsets.all(3),
+                              decoration: const BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                              ),
+                              constraints: const BoxConstraints(minWidth: 15, minHeight: 15),
+                              child: Text(
+                                '${_broadcasts.length}',
+                                style: const TextStyle(color: Colors.white, fontSize: 8.5, fontWeight: FontWeight.bold),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                     // Language Switcher Toggle
                     GestureDetector(
                       onTap: AppTranslations.toggleLanguage,
@@ -270,17 +424,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       onPressed: _triggerSosEmergency,
                       tooltip: AppTranslations.get('emergency_sos'),
                     ),
-                    // Officer Console shortcut
-                    IconButton(
-                      icon: const Icon(Icons.admin_panel_settings_rounded, color: AppTheme.govAshokaBlue),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
-                        );
-                      },
-                      tooltip: 'Officer Console (अधिकारी कक्ष)',
-                    ),
+
                   ],
                 ),
               ],
@@ -293,43 +437,38 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Emergency Broadcast Banner
-                  if (_broadcasts.isNotEmpty)
-                    EmergencyBroadcastBanner(
-                      broadcasts: _broadcasts,
-                      onDismiss: (id) => setState(() => _broadcasts.removeWhere((b) => b.id == id)),
-                    ),
-
-                  // Ward / Jurisdiction Selector Filter Dropdown
+                  // Hyperlocal Vicinity GPS Detection Status
                   Container(
                     margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: AppTheme.govAshokaBlue.withValues(alpha: 0.05),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppTheme.borderLight),
+                      border: Border.all(color: AppTheme.govAshokaBlue.withValues(alpha: 0.15)),
                     ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _selectedWard,
-                        isExpanded: true,
-                        icon: const Icon(Icons.keyboard_arrow_down, size: 20, color: AppTheme.govAshokaBlue),
-                        items: _wards.map((w) {
-                          return DropdownMenuItem<String>(
-                            value: w,
-                            child: Text(
-                              w == 'all' ? '🏛️ All Local Jurisdictions / Zones' : '📍 $w',
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textDark),
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          if (val != null) {
-                            setState(() => _selectedWard = val);
+                    child: Row(
+                      children: [
+                        const Icon(Icons.my_location_rounded, size: 15, color: AppTheme.govAshokaBlue),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _isLocating
+                                ? (isHindi ? 'जीपीएस स्थान प्राप्त किया जा रहा है...' : 'Acquiring device GPS...')
+                                : (isHindi
+                                    ? 'निकटवर्ती शिकायतें (~40 किमी दायरा) • स्वचालित जीपीएस'
+                                    : 'Hyperlocal Vicinity (~40 km cluster) • GPS Detected'),
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.govAshokaBlue),
+                          ),
+                        ),
+                        InkWell(
+                          onTap: () async {
+                            final pos = await LocationService.determinePosition(forceRefresh: true);
+                            setState(() => _userLocation = pos);
                             _loadData();
-                          }
-                        },
-                      ),
+                          },
+                          child: const Icon(Icons.refresh_rounded, size: 16, color: AppTheme.govAshokaBlue),
+                        ),
+                      ],
                     ),
                   ),
 
@@ -599,6 +738,62 @@ class _HomeScreenState extends State<HomeScreen> {
               AppTranslations.get('report_hazard'),
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
             ),
+          ),
+          bottomNavigationBar: BottomNavigationBar(
+            currentIndex: _isMapView ? 1 : 0,
+            onTap: (index) {
+              if (index == 0) {
+                setState(() => _isMapView = false);
+              } else if (index == 1) {
+                setState(() => _isMapView = true);
+              } else if (index == 2) {
+                _showNotificationsBottomSheet();
+              }
+            },
+            selectedItemColor: AppTheme.govAshokaBlue,
+            unselectedItemColor: AppTheme.textMuted,
+            selectedFontSize: 11,
+            unselectedFontSize: 11,
+            items: [
+              BottomNavigationBarItem(
+                icon: const Icon(Icons.format_list_bulleted_rounded),
+                activeIcon: const Icon(Icons.format_list_bulleted_rounded),
+                label: isHindi ? 'शिकायतें' : 'Grievances',
+              ),
+              BottomNavigationBarItem(
+                icon: const Icon(Icons.map_outlined),
+                activeIcon: const Icon(Icons.map_rounded),
+                label: isHindi ? 'मानचित्र' : 'Live Map',
+              ),
+              BottomNavigationBarItem(
+                icon: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    const Icon(Icons.notifications_none_rounded),
+                    if (_broadcasts.isNotEmpty)
+                      Positioned(
+                        top: -2,
+                        right: -4,
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                          constraints: const BoxConstraints(minWidth: 12, minHeight: 12),
+                          child: Text(
+                            '${_broadcasts.length}',
+                            style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                activeIcon: const Icon(Icons.notifications_rounded),
+                label: isHindi ? 'सूचनाएं' : 'Alerts',
+              ),
+            ],
           ),
         );
       },

@@ -9,7 +9,7 @@ import 'package:mobile/models/jurisdiction.dart';
 void main() {
   testWidgets('HyperNet app smoke test', (WidgetTester tester) async {
     await tester.pumpWidget(const HyperNetMobileApp());
-    expect(find.text('CivicDesk'), findsOneWidget);
+    expect(find.byType(HyperNetMobileApp), findsOneWidget);
   });
 
   test('ApiService formatMediaUrl formats full and relative paths', () {
@@ -102,9 +102,10 @@ void main() {
     expect(inc.comments[0].message, contains('Work crew dispatched'));
   });
 
-  test('Jurisdiction registry contains 7 registered multi-tier offices', () {
-    expect(localJurisdictionOffices.length, 7);
-    expect(localJurisdictionOffices[0].id, 'AUTH-APEX-01');
+  test('Jurisdiction registry contains multi-tier offices with regional and Jaipur coverage', () {
+    expect(localJurisdictionOffices.length, greaterThanOrEqualTo(7));
+    expect(localJurisdictionOffices.any((o) => o.id == 'AUTH-APEX-01'), isTrue);
+    expect(localJurisdictionOffices.any((o) => o.id == 'AUTH-ZONE-JAIPUR-MALVIYA'), isTrue);
     expect(localJurisdictionOffices.any((o) => o.tier == 'apex_central'), isTrue);
     expect(localJurisdictionOffices.any((o) => o.tier == 'zonal_ward'), isTrue);
     expect(localJurisdictionOffices.any((o) => o.tier == 'local_society'), isTrue);

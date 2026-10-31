@@ -8,6 +8,7 @@ import jwt from "jsonwebtoken";
 import asyncHandler from "../utils/asyncHandler";
 import ApiResponse from "../utils/ApiResponse";
 import crypto from "crypto";
+import { resolveNearestAuthority } from "../utils/authorityRouting";
 
 // ----------------- Helper -----------------
 const generateAccessAndRefereshTokens = async (userId: string) => {
@@ -297,7 +298,52 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   }
 });
 
+
+// CREATE NEW AUTHORITY / ADMIN ACCOUNT (Web Admin Console)
+const createAuthorityAccount = asyncHandler(async (req: Request, res: Response) => {
+  const { name, email, password, role, ward, phone, latitude, longitude } = req.body;
+
+  if (!email || !password || !name) {
+    throw new ApiError(400, "Name, email and password are required");
+  }
+
+  const existing = await User.findOne({ email });
+  if (existing) {
+    throw new ApiError(400, "An account with this email already exists");
+  }
+
+  // Resolve assigned ward/office: if coordinates provided, auto-assign nearest authority desk!
+  let assignedWard = ward;
+  if (!assignedWard && latitude && longitude) {
+    const nearest = resolveNearestAuthority(Number(latitude), Number(longitude));
+    assignedWard = nearest.officeId;
+  }
+
+  const user = new User({
+    name,
+    email,
+    password,
+    phone,
+    role: role === "officer" ? "officer" : "admin",
+    ward: assignedWard || "AUTH-ZONE-JAIPUR-MALVIYA",
+    isEmailVerified: true,
+  });
+
+  await user.save();
+
+  return res.status(201).json(
+    new ApiResponse(201, "Authority officer/admin created successfully", {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      ward: user.ward,
+    })
+  );
+});
+
 export {
+  createAuthorityAccount,
   registerUser,
   loginUser,
   adminLoginUser,

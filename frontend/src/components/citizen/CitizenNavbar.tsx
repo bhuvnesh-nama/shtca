@@ -22,7 +22,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   PlusCircle,
   LogOut,
-  Building2,
   Bell,
   ShieldAlert,
   Search,
@@ -116,17 +115,19 @@ export const CitizenNavbar: React.FC<CitizenNavbarProps> = ({
       <div className="max-w-7xl mx-auto flex h-16 items-center justify-between px-3 sm:px-6 gap-3">
         {/* Left: Brand Identity */}
         <Link to="/" className="flex items-center gap-2.5 shrink-0">
-          <div className="flex size-10 items-center justify-center rounded-lg bg-[#003366] text-white shadow-sm ring-2 ring-[#003366]/20 shrink-0">
-            <Building2 className="size-5 text-amber-400" />
-          </div>
+          <img
+            src="/logo.png"
+            alt="SHTCA Logo"
+            className="size-10 rounded-lg object-contain bg-white p-0.5 border border-border shadow-xs shrink-0"
+          />
           <div className="flex flex-col justify-center">
             <div className="flex items-center gap-1.5 whitespace-nowrap leading-none">
               <span className="font-extrabold tracking-tight text-lg text-[#003366] dark:text-blue-400">
-                CivicDesk
+                SHTCA
               </span>
             </div>
             <span className="text-[10px] text-muted-foreground whitespace-nowrap leading-tight hidden sm:block mt-0.5 font-medium">
-              Civic Grievance & Redressal Platform
+              Civic Grievance & Redressal Portal
             </span>
           </div>
         </Link>

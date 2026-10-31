@@ -65,8 +65,11 @@ export const INCIDENT_CATEGORIES = [
 export const getNearbyIncidents = asyncHandler(async (req: Request, res: Response) => {
   const { lat, lng, radius, category, status, search, limit, ward, flagged, officeId } = req.query;
 
+  const authUser = (req as any).user;
+  const userScope = authUser && authUser.ward && authUser.ward !== "AUTH-APEX-01" ? `:${authUser._id}:${authUser.ward}` : (authUser ? `:${authUser._id}` : "");
+
   // High-performance geospatial caching (Phase 10: Scale)
-  const cacheKey = `incidents:${JSON.stringify(req.query)}`;
+  const cacheKey = `incidents${userScope}:${JSON.stringify(req.query)}`;
   const cached = queryCache.get<any>(cacheKey);
   if (cached) {
     res.setHeader("X-Cache", "HIT");
@@ -77,7 +80,10 @@ export const getNearbyIncidents = asyncHandler(async (req: Request, res: Respons
 
   const query: any = {};
 
-  if (officeId && officeId !== "all" && officeId !== "AUTH-APEX-01") {
+  // Strict Admin & Officer Isolation: If officer is logged in, restrict to their assigned jurisdiction
+  if (authUser && authUser.ward && authUser.ward !== "AUTH-APEX-01") {
+    query["assignedAuthority.officeId"] = authUser.ward;
+  } else if (officeId && officeId !== "all" && officeId !== "AUTH-APEX-01") {
     query["assignedAuthority.officeId"] = String(officeId);
   }
 
@@ -119,7 +125,7 @@ export const getNearbyIncidents = asyncHandler(async (req: Request, res: Respons
   if (lat && lng && !isNaN(Number(lat)) && !isNaN(Number(lng))) {
     const latitude = Number(lat);
     const longitude = Number(lng);
-    const maxDist = Number(radius) || 15000;
+    const maxDist = Number(radius) || 35000; // 35 km default vicinity
 
     query.location = {
       $near: {
@@ -136,14 +142,13 @@ export const getNearbyIncidents = asyncHandler(async (req: Request, res: Respons
       .populate("createdBy", "name email avatarUrl")
       .limit(queryLimit);
 
-    // Fallback: If no incidents within strict radius (e.g. developer testing outside ward boundary),
-    // return latest active incidents instead of showing an empty blank screen
-    if (incidents.length === 0) {
-      delete query.location;
+    // If no incidents within 35km, try wider city radius (up to 55km max), but NEVER drop location filter!
+    // Ensures Jaipur citizen NEVER sees Delhi incidents or vice versa!
+    if (incidents.length === 0 && maxDist < 55000) {
+      query.location.$near.$maxDistance = 55000;
       incidents = await Incident.find(query)
         .populate("reports")
         .populate("createdBy", "name email avatarUrl")
-        .sort({ createdAt: -1 })
         .limit(queryLimit);
     }
   } else {
@@ -953,9 +958,32 @@ export const dismissBroadcast = asyncHandler(async (req: Request, res: Response)
 
 export const triggerSosEmergency = asyncHandler(async (req: Request, res: Response) => {
   const { latitude, longitude, address, details } = req.body;
-  const lat = Number(latitude) || 28.6304;
-  const lng = Number(longitude) || 77.2177;
+  const lat = Number(latitude) || 26.86081;
+  const lng = Number(longitude) || 75.81854;
   const reporterName = req.user?.name || "Resident (Urgent SOS)";
+
+  // 0. Anti-spam / Deduplication: Prevent duplicate SOS within 60s in the same 1km vicinity
+  const recentCutoff = new Date(Date.now() - 60 * 1000);
+  const existingRecentSos = await Incident.findOne({
+    category: "theft_security",
+    severity: "critical",
+    createdAt: { $gte: recentCutoff },
+    location: {
+      $near: {
+        $geometry: { type: "Point", coordinates: [lng, lat] },
+        $maxDistance: 1000,
+      },
+    },
+  });
+
+  if (existingRecentSos) {
+    return res.status(200).json(
+      new ApiResponse(200, "Emergency alert is already active in this vicinity. Authorities and residents are notified.", {
+        incident: existingRecentSos,
+        isDuplicate: true,
+      })
+    );
+  }
 
   // 1. Create high-priority critical incident
   const incident = new Incident({

@@ -1,198 +1,288 @@
-# SHTCA — Smart Hyperlocal Town & Civic Authority
-> **Public Grievance Redressal, Spatial Redressal & Field Redressal Network**
+<div align="center">
 
-An enterprise-grade, hyperlocal civic grievance management platform connecting citizens, municipal authorities, and field engineers. Features automatic geospatial routing, live incident tracking, multi-tier authority administration, and instant emergency broadcasts across web and mobile.
+# 🏛️ SHTCA — Smart Hyperlocal Town & Civic Authority
+### Public Grievance Redressal, Spatial Intelligence & Field Action Network
+
+[![GitHub Release](https://img.shields.io/github/v/release/bhuvnesh-nama/shtca?color=003366&logo=github&style=for-the-badge)](https://github.com/bhuvnesh-nama/shtca/releases)
+[![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter&logoColor=white&style=for-the-badge)](https://flutter.dev)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black&style=for-the-badge)](https://react.dev)
+[![Node.js](https://img.shields.io/badge/Node.js-22-339933?logo=node.js&logoColor=white&style=for-the-badge)](https://nodejs.org)
+[![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?logo=mongodb&logoColor=white&style=for-the-badge)](https://www.mongodb.com)
+[![License](https://img.shields.io/badge/License-ISC-blue?style=for-the-badge)](./LICENSE)
+
+<br/>
+
+**[🌐 Live Citizen Portal](https://shtca.com)** &nbsp;|&nbsp;
+**[📱 Download Android APK](https://github.com/bhuvnesh-nama/shtca/releases/latest/download/app-release.apk)** &nbsp;|&nbsp;
+**[📡 Production API Gateway](https://api.shtca.com)** &nbsp;|&nbsp;
+**[📦 All GitHub Releases](https://github.com/bhuvnesh-nama/shtca/releases)**
 
 ---
 
-## 🏛️ Executive Summary & Product Vision (PRD)
+### 🇮🇳 *Satyameva Jayate* &bull; Transparent, Spatially-Routed Civic Administration
 
-Traditional public grievance systems suffer from information silos: citizen complaints are submitted through disparate channels, leading to duplicate tickets, lack of real-time visibility, and no verifiable audit trail of physical on-site resolution.
+</div>
 
-**SHTCA (Smart Hyperlocal Town & Civic Authority)** transforms citizen reports into a shared, spatially-aware incident intelligence pipeline:
-- **Zero-Friction Citizen LODGE**: Citizens pinpoint issues using high-precision GPS. The system dynamically resolves the nearest municipal zonal office without forcing manual ward/zone selections.
-- **Evidence-Backed Verification**: Corroboration is evidence-based (on-site photos, GPS stamping, resident confirmations) rather than popularity-only upvotes.
-- **Multi-Admin Zonal Isolation**: Regional nodal officers only view complaints assigned to their jurisdiction, preventing jurisdictional overlap while apex administrators maintain citywide oversight.
-- **Closed-Loop Action Taken Reports (ATR)**: Complaints cannot be closed without geotagged physical resolution evidence and field engineer inspection notes.
+<br/>
+
+## 📌 Executive Overview
+
+Traditional public grievance portals suffer from fragmented communication, opaque ticketing queues, manual zone confusion, and lack of verified physical resolution.
+
+**SHTCA** is an end-to-end, multi-tier civic infrastructure platform connecting citizens with regional municipal corporations and field engineering desks. By combining high-precision GPS positioning, dynamic geospatial routing, real-time WebSocket synchronization, and photographic Action Taken Reports (ATR), SHTCA ensures that every civic issue—from road hazards and power outages to water shortages and sanitation—is resolved with verifiable accountability.
 
 ---
 
-## 🏗️ System Architecture
+## ✨ Key Platform Innovations
 
-SHTCA employs a modular, decoupled full-stack architecture designed for real-time responsiveness and high availability:
+| Feature | Citizen Impact | Municipal / Officer Impact |
+| :--- | :--- | :--- |
+| **📍 Dynamic Geospatial Auto-Routing** | Zero manual ward/zone selection. GPS coordinates automatically resolve the nearest municipal desk. | Tickets are automatically distributed to the exact jurisdiction responsible for on-site redressal. |
+| **🛡️ Evidence-Backed ATR Closure** | Citizens can see photo proof of completed repairs and read field engineer notes before a case is closed. | Officers must upload verifiable photographic evidence and timestamped inspection logs to resolve complaints. |
+| **🔒 Strict Zonal Admin Isolation** | Citizens only see alerts and complaints relevant to their neighbourhood or immediate area. | Regional nodal officers only view complaints within their jurisdiction; apex directors retain citywide oversight. |
+| **⚡ Real-time Civic Alerts (WebSockets)** | Instant broadcast notifications for emergency water cuts, severe weather advisories, or road repairs. | One-click dispatch of targeted civil advisories across web and mobile citizen devices. |
+| **📱 Dedicated Native Mobile App** | 100% citizen-focused native Android app with runtime GPS locking and offline resilience. | Web-only officer console keeps sensitive administrative controls off personal mobile screens. |
+| **🌐 Bilingual Accessibility** | One-click toggle between English and Hindi across the entire interface. | Enhances grassroots civic participation across diverse demographics. |
+
+---
+
+## 🏗️ Architecture & Data Flow
 
 ```mermaid
 flowchart TB
-    subgraph Clients["Citizen & Officer Clients"]
-        Web[React 19 SPA<br/>Vite + Tailwind CSS]
-        Mobile[Flutter Mobile App<br/>Android & iOS]
+    subgraph Clients["1. Citizen & Officer Clients"]
+        Web["Citizen & Admin Web Portal<br/>(React 19 + TypeScript + Vite)"]
+        Mobile["Citizen Mobile App<br/>(Flutter 3.x Native Android)"]
     end
 
-    subgraph Gateway["Edge Gateway & Reverse Proxy"]
-        Caddy[Caddy 2 Auto-HTTPS / Vercel Edge<br/>Zero-Cache HTML & Immutable Assets]
+    subgraph Edge["2. Edge Routing & Gateway Layer"]
+        Caddy["Caddy 2 Gateway / Vercel Edge<br/>- Strict Cache-Control: no-cache for HTML<br/>- Global CORS (*)<br/>- Immutable Asset Caching"]
     end
 
-    subgraph Backend["Application Server (Node.js + Express + TS)"]
-        API[RESTful Endpoints]
-        Sockets[Socket.IO Gateway]
-        Spatial[Geospatial Resolver<br/>Haversine & 2dsphere]
-        Mailer[Resend Email Engine<br/>Handlebars Templates]
+    subgraph Backend["3. Backend API & Engine (Node.js + Express)"]
+        Router["RESTful API Endpoints"]
+        Geo["Haversine & 2dsphere Geospatial Resolver"]
+        SocketEngine["Socket.IO Live Gateway"]
+        EmailEngine["Resend Transactional Email Engine<br/>(Handlebars .hbs Templates)"]
     end
 
-    subgraph Storage["Persistence Layer"]
-        Mongo[(MongoDB Atlas<br/>2dsphere Spatial Indexing)]
-        Evidence[(Local / CDN Evidence Storage)]
+    subgraph DB["4. Persistence & Storage Layer"]
+        MongoDB[("MongoDB Atlas<br/>2dsphere Spatial Index")]
+        Uploads[("Citizen Photographic Evidence Storage")]
     end
 
     Web -->|HTTPS / WSS| Caddy
     Mobile -->|HTTPS / REST| Caddy
-    Caddy -->|Reverse Proxy| API
-    Caddy -->|WebSocket Tunnel| Sockets
-    API --> Spatial
-    API --> Mailer
-    API --> Mongo
-    API --> Evidence
-    Sockets -.->|Real-time Sync| Web
-    Sockets -.->|Incident Alerts| Mobile
+    Caddy -->|Reverse Proxy| Router
+    Caddy -->|WebSocket Tunnel| SocketEngine
+    Router --> Geo
+    Router --> EmailEngine
+    Router --> MongoDB
+    Router --> Uploads
+    SocketEngine -.->|Live Broadcasts| Web
+    SocketEngine -.->|Incident Feed Sync| Mobile
 ```
 
-### Technology Stack
+---
 
-| Layer | Technologies | Key Role |
+## 🛠️ Technology Stack
+
+```
+├── Frontend (Web SPA)
+│   ├── React 19 & TypeScript 5
+│   ├── Vite 8 (Hot-Module Replacement & Optimized Production Bundles)
+│   ├── Tailwind CSS (Civic Public-Service Design Tokens)
+│   ├── Radix UI Primitives & Lucide Icons
+│   ├── Leaflet & MapLibre GL JS (Interactive Spatial Maps)
+│   └── Socket.IO Client (Real-time Broadcasts & Timeline Sync)
+│
+├── Mobile Application (Android)
+│   ├── Flutter 3.x & Dart
+│   ├── flutter_map & latlong2 (OpenStreetMap Tile Engine)
+│   ├── geolocator (High-Accuracy Runtime GPS Location)
+│   ├── http & provider (Clean State Architecture)
+│   └── Optimized Release APK (49.5 MB lightweight installable)
+│
+├── Backend Services (REST API)
+│   ├── Node.js 22 & Express (ESM Modular Architecture)
+│   ├── MongoDB Atlas with Mongoose (2dsphere Spatial Geometries)
+│   ├── Socket.IO 4.x (Live Multi-Client Synchronization)
+│   ├── Resend Official SDK (Transactional Emails & OTP Verification)
+│   ├── Handlebars (Templated HTML Email Notifications)
+│   └── Multer (On-Site Citizen Evidence Image Storage)
+│
+└── Infrastructure & DevOps
+    ├── Caddy 2 (Automatic TLS, Reverse Proxy, Cache-Busting)
+    ├── Docker & Docker Compose (Zero-Downtime Multi-Container Stacks)
+    ├── Vercel (Edge SPA Hosting & Asset Optimization)
+    └── GitHub Actions (Automated CI/CD Deployment & APK Release Workflows)
+```
+
+---
+
+## 🎨 Civic Design System & Theme
+
+SHTCA adheres to an authoritative, public-service visual language inspired by modern civic platforms.
+
+### Core Color Palette
+
+| Token | Hex Value | Semantic Role |
 | :--- | :--- | :--- |
-| **Citizen & Admin Web** | React 19, TypeScript, Vite, Tailwind CSS, Radix UI, Leaflet, Socket.IO Client | Responsive desktop & mobile portal with live map rendering |
-| **Citizen Mobile App** | Flutter 3.x, Dart, `flutter_map`, `geolocator`, Android Release APK | Native Android citizen experience with runtime GPS locking |
-| **Backend API** | Node.js 22, Express, TypeScript, Zod, Mongoose | High-performance modular API server with geospatial indexing |
-| **Realtime Engine** | Socket.IO | Instant incident broadcasts and status timeline synchronization |
-| **Transactional Email** | Resend API SDK, Handlebars (`.hbs`) | Instant password resets and citizen verification codes |
-| **Reverse Proxy & TLS** | Caddy 2, Docker Compose, Vercel | Auto-HTTPS, strict cache-control, and immutable asset delivery |
-| **Database** | MongoDB Atlas (Mongoose 2dsphere) | Geospatial proximity queries, incident indexing, and user auth |
+| **Ashoka Blue (Primary)** | `#003366` | Institutional trust, navigation bar, primary buttons, and official badges |
+| **Indian Saffron** | `#FF9933` | Tricolor top accent bar, urgency indicators, and active alerts |
+| **Indian Green** | `#138808` | Verified resolution status, healthy civic score, positive confirmation |
+| **Emergency Crimson** | `#DC2626` | SOS reports, high-severity infrastructure hazards, and critical notices |
+| **Civic Slate** | `#64748B` | Secondary landmarks, timestamps, and metadata |
+| **Clean Background** | `#F8FAFC` / `#0B1329` | High-contrast readable canvas supporting light and dark themes |
 
 ---
 
-## 🎨 Visual Identity & Civic Design System
+## 📱 Mobile Application (Android APK Download)
 
-SHTCA is built upon an authoritative, public-service visual discipline that balances accessibility with civic transparency.
+The SHTCA Citizen Mobile App is packaged as a standalone Android APK:
 
-### Color Palette
+| Package | Size | Target Architecture | Download Link |
+| :--- | :--- | :--- | :--- |
+| **Official Release APK** | **49.5 MB** | `arm64-v8a`, `armeabi-v7a`, `x86_64` | [📥 Download app-release.apk](https://github.com/bhuvnesh-nama/shtca/releases/latest/download/app-release.apk) |
+| **Debug Development APK** | **124.7 MB** | Universal | [📦 Download from Releases](https://github.com/bhuvnesh-nama/shtca/releases) |
 
-| Token | Hex Code | Visual Meaning |
-| :--- | :--- | :--- |
-| **Ashoka Blue (Primary)** | `#003366` | Institutional trust, authority, and official government branding |
-| **Saffron Accent** | `#FF9933` | Priority notices, national civic identity |
-| **India Green** | `#138808` | Resolved state, positive civic health index |
-| **Emergency Crimson** | `#DC2626` | SOS alerts, critical infrastructure failures |
-| **Muted Slate** | `#64748B` | Secondary metadata, landmarks, and timestamps |
-| **Clean White / Card** | `#FFFFFF` / `#0F172A` | High-contrast accessible canvas for light and dark modes |
-
-### Design Principles
-1. **Clarity Over Flash**: High-density information layouts designed for citizens in stressful situations.
-2. **Accessible by Default**: WCAG 2.1 AA compliant typography, prominent button hit-areas, and multilingual support (English & Hindi).
-3. **No Impersonation**: Uses dignified public service discipline without infringing official state seals or emblems.
-
----
-
-## ⚡ Core Features & Functional Specification
-
-### 1. Citizen Portal & Mobile App
-- **High-Precision GPS Location**: Pins user location automatically with runtime permissions (`geolocator`); fallback coordinates for Jaipur / pilot regions.
-- **Dynamic Office Auto-Routing**: Citizen complaints are automatically assigned to the nearest municipal desk (e.g. *Malviya Nagar Division*, *Jaipur Heritage MC*, or *East Zone Division*) using Haversine distance calculations.
-- **Interactive Civic Map**: Visualizes open, in-progress, and resolved complaints with color-coded severity markers and cluster radius.
-- **Emergency Broadcast Banners**: Instant citywide or zonal civil alerts (water supply disruptions, severe weather warnings) powered by Socket.IO.
-- **Citizen Corroboration**: Nearby residents can upvote or add on-site comments to existing complaints, eliminating duplicate reports.
-
-### 2. Officer & Nodal Authority Console (Web Only)
-- **Strict Zonal Isolation**: Regional administrators only access tickets assigned to their municipal jurisdiction.
-- **Sub-Admin Creation**: Apex administrators can register additional departmental officers with predefined desk jurisdictions.
-- **Action Taken Report (ATR) Workflow**: Officers upload resolution evidence, repair photographs, and field notes before closing a complaint.
-- **Municipal Health Score**: Real-time algorithm grading regional infrastructure performance (0–100 index based on resolution speed and complaint volume).
-
----
-
-## 🔐 Environment Variables Guide
-
-Create a `.env` in `backend/` for local development or `.env.production` on the production server:
-
-```env
-# Server & Security
-NODE_ENV=production
-PORT=8000
-JWT_SECRET=your_super_secret_jwt_key_here
-DOMAIN_NAME=shtca.com
-API_DOMAIN=api.shtca.com
-FRONTEND_URL=https://shtca.com
-
-# Database (MongoDB Atlas)
-DATABASE_URL=mongodb+srv://<user>:<password>@cluster.mongodb.net/shtca?retryWrites=true&w=majority
-
-# Resend Transactional Email
-RESEND_API_KEY=re_123456789_abcdef...
-EMAIL_FROM=SHTCA Civic Portal <support@shtca.com>
-
-# Optional SMTP Fallback
-EMAIL_HOST=mail.suremarkettips.com
-EMAIL_PORT=587
-EMAIL_USER=contact@suremarkettips.com
-EMAIL_PASS=smtp_password_here
-
-# Spatial & Map Tile Configuration
-MAP_PROVIDER=osm
-MAP_TILES_URL=https://tile.openstreetmap.org/{z}/{x}/{y}.png
-```
-
----
-
-## 🚀 Deployment & Installation
-
-### Local Development Setup
-
-1. **Clone & Install Dependencies**:
-   ```bash
-   git clone https://github.com/bhuvnesh-nama/shtca.git
-   cd shtca
-
-   # Backend
-   cd backend && npm install
-   npm run dev
-
-   # Frontend (separate terminal)
-   cd frontend && npm install
-   npm run dev
-   ```
-
-2. **Mobile App (Flutter)**:
-   ```bash
-   cd mobile
-   flutter pub get
-   flutter run
-   ```
-
-### Production Docker Deployment (VPS)
-```bash
-# Build and run with Caddy reverse proxy and auto-HTTPS
-docker compose -f docker-compose.prod.yml up -d --build
-```
-
-### Vercel Frontend Deployment
-A production-ready [vercel.json](./vercel.json) is included with:
-- Global CORS headers (`Access-Control-Allow-Origin: *`)
-- `Cache-Control: no-cache` for HTML/PWA files
-- SPA rewrite rules routing `/api/*` to `https://api.shtca.com`
-
----
-
-## 📱 Mobile App (Android APK)
-
-Pre-built installable Android packages are located under:
-- **Release APK (Optimized 49.5 MB)**: `mobile/build/app/outputs/flutter-apk/app-release.apk`
-- **Debug APK (124.7 MB)**: `mobile/build/app/outputs/flutter-apk/app-debug.apk`
-
-Install directly to an Android device via ADB:
+### Installing via ADB (Command Line)
 ```bash
 adb install -r mobile/build/app/outputs/flutter-apk/app-release.apk
 ```
 
 ---
 
+## ⚙️ Environment Variables Reference
+
+Create a `.env` in `backend/` for local development or `.env.production` on the production server:
+
+```env
+# ==========================================
+# 1. CORE APPLICATION & DOMAINS
+# ==========================================
+NODE_ENV=production
+PORT=8000
+JWT_SECRET=your_super_secret_jwt_random_string_here
+DOMAIN_NAME=shtca.com
+API_DOMAIN=api.shtca.com
+FRONTEND_URL=https://shtca.com
+
+# ==========================================
+# 2. DATABASE PERSISTENCE (MongoDB Atlas)
+# ==========================================
+DATABASE_URL=mongodb+srv://<username>:<password>@cluster0.abcde.mongodb.net/shtca?retryWrites=true&w=majority
+
+# ==========================================
+# 3. TRANSACTIONAL EMAIL ENGINE (Resend)
+# ==========================================
+RESEND_API_KEY=re_your_resend_api_key_here
+EMAIL_FROM=SHTCA Civic Portal <support@shtca.com>
+
+# Optional legacy SMTP fallback (if Resend key is not configured)
+EMAIL_HOST=mail.suremarkettips.com
+EMAIL_PORT=587
+EMAIL_USER=contact@suremarkettips.com
+EMAIL_PASS=your_smtp_password
+
+# ==========================================
+# 4. MAP & SPATIAL PROVIDERS
+# ==========================================
+MAP_PROVIDER=osm
+MAP_TILES_URL=https://tile.openstreetmap.org/{z}/{x}/{y}.png
+```
+
+---
+
+## 🚀 Step-by-Step Installation & Local Setup
+
+### 1. Prerequisites
+- **Node.js** v20.x or v22.x
+- **Flutter SDK** v3.24+ (for mobile development)
+- **MongoDB** instance (Local or MongoDB Atlas)
+- **Git**
+
+### 2. Backend Setup
+```bash
+cd backend
+npm install
+npm run dev
+# Backend server runs on http://localhost:8000
+```
+
+### 3. Frontend Web Setup
+```bash
+cd frontend
+npm install
+npm run dev
+# Web application starts at http://localhost:5173
+```
+
+### 4. Mobile App Setup (Flutter)
+```bash
+cd mobile
+flutter pub get
+
+# Run on connected Android device or emulator
+flutter run
+
+# Or build the release APK directly:
+flutter build apk --release
+```
+
+---
+
+## 🐳 Production Deployment (Docker + Caddy)
+
+For automated zero-downtime production deployment on any VPS (Ubuntu/Debian):
+
+```bash
+# Clone the repository
+git clone https://github.com/bhuvnesh-nama/shtca.git /opt/shtca
+cd /opt/shtca
+
+# Configure production environment variables
+cp .env.production.example .env.production
+nano .env.production
+
+# Spin up backend, Caddy reverse-proxy, and auto-HTTPS containers
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
+```
+
+---
+
+## 🏷️ Publishing a GitHub Release with APK
+
+Our repository includes an automated GitHub Actions workflow [`.github/workflows/release-apk.yml`](./.github/workflows/release-apk.yml) that builds and publishes the Flutter Release APK to GitHub Releases.
+
+To create a new release:
+```bash
+# Tag the current release version
+git tag v1.0.0
+
+# Push tag to trigger GitHub Release builder
+git push origin v1.0.0
+```
+GitHub Actions will automatically compile the Flutter Android APK and attach `app-release.apk` to the new GitHub Release for instant public download.
+
+---
+
+## 📋 Primary REST API Endpoints
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `POST` | `/api/auth/register` | Citizen account registration (Name, Phone, Email, Password) |
+| `POST` | `/api/auth/login` | Citizen & Officer login with JWT access token generation |
+| `POST` | `/api/auth/authority/register` | Apex Admin endpoint to create new zonal department officers |
+| `POST` | `/api/auth/forgot-password` | Dispatches password reset link via Resend email |
+| `GET` | `/api/incidents` | Geospatial incident feed with proximity filtering & severity tags |
+| `POST` | `/api/incidents` | Lodges new civic grievance with photographic evidence & GPS pin |
+| `PATCH` | `/api/incidents/:id/status` | Officers update grievance lifecycle (`in_progress`, `resolved`) with ATR |
+| `POST` | `/api/incidents/:id/upvote` | Citizen corroboration confirming active local incidents |
+| `GET` | `/api/broadcasts` | Fetches active emergency civic advisories and city alerts |
+
+---
+
 ## 📄 License
-This project is developed for the Smart Hyperlocal Civic Infrastructure Initiative. Distributed under the ISC License.
+
+Distributed under the **ISC License**. Developed for transparent, accountable, and citizen-first civic governance.

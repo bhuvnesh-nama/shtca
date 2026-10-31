@@ -4,16 +4,16 @@ import 'theme/app_theme.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const HyperNetMobileApp());
+  runApp(const SHTCAMobileApp());
 }
 
-class HyperNetMobileApp extends StatelessWidget {
-  const HyperNetMobileApp({super.key});
+class SHTCAMobileApp extends StatelessWidget {
+  const SHTCAMobileApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'HyperNet Community Safety',
+      title: 'SHTCA Civic Portal',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       home: const HomeScreen(),

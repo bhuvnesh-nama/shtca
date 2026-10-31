@@ -307,7 +307,7 @@ const Dashboard = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `hypernet-safety-audit-${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute("download", `shtca-civic-audit-${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

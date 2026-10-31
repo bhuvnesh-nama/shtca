@@ -13,7 +13,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/lib/apiClient";
 import { toast } from "sonner";
-import { Shield, Mail, ArrowRight } from "lucide-react";
+import { Mail, ArrowRight } from "lucide-react";
 
 function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -45,13 +45,20 @@ function ForgotPassword() {
 
       <div className="w-full max-w-md relative z-10 space-y-6">
         <div className="flex flex-col items-center text-center space-y-2">
-          <Link to="/" className="flex items-center gap-2 group">
-            <div className="flex size-11 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md group-hover:scale-105 transition-transform">
-              <Shield className="size-6" />
+          <Link to="/" className="flex items-center gap-2.5 group">
+            <img
+              src="/logo.png"
+              alt="SHTCA Logo"
+              className="size-11 rounded-xl object-contain bg-white p-1 border border-border shadow-md group-hover:scale-105 transition-transform"
+            />
+            <div className="text-left">
+              <span className="font-extrabold text-xl tracking-tight text-[#003366] dark:text-blue-400 block leading-tight">
+                SHTCA <span className="text-xs font-bold px-1.5 py-0.5 rounded-sm bg-blue-100 dark:bg-blue-950 text-[#003366] dark:text-blue-200 uppercase tracking-wider border border-blue-300 dark:border-blue-800 ml-1">Citizen</span>
+              </span>
+              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">
+                Public Grievance Redressal Portal
+              </span>
             </div>
-            <span className="font-bold text-2xl tracking-tight text-foreground">
-              Hyper<span className="text-blue-600">Net</span>
-            </span>
           </Link>
           <p className="text-xs text-muted-foreground max-w-xs font-medium">
             Account Access Recovery

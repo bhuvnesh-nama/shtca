@@ -7,9 +7,9 @@ import 'package:mobile/models/incident.dart';
 import 'package:mobile/models/jurisdiction.dart';
 
 void main() {
-  testWidgets('HyperNet app smoke test', (WidgetTester tester) async {
-    await tester.pumpWidget(const HyperNetMobileApp());
-    expect(find.byType(HyperNetMobileApp), findsOneWidget);
+  testWidgets('SHTCA app smoke test', (WidgetTester tester) async {
+    await tester.pumpWidget(const SHTCAMobileApp());
+    expect(find.byType(SHTCAMobileApp), findsOneWidget);
   });
 
   test('ApiService formatMediaUrl formats full and relative paths', () {

@@ -117,12 +117,12 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [language, setLanguageState] = useState<Language>(() => {
-    return (localStorage.getItem("hypernet_lang") as Language) || "en";
+    return (localStorage.getItem("shtca_lang") as Language) || "en";
   });
 
   const setLanguage = (lang: Language) => {
     setLanguageState(lang);
-    localStorage.setItem("hypernet_lang", lang);
+    localStorage.setItem("shtca_lang", lang);
   };
 
   const toggleLanguage = () => {

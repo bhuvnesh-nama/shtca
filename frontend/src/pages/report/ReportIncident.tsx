@@ -112,7 +112,7 @@ const fetchAddressFromCoords = async (lat: number, lng: number) => {
   try {
     const res = await fetch(
       `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
-      { headers: { "User-Agent": "HyperNetCivic/1.0" } }
+      { headers: { "User-Agent": "SHTCACivic/1.0" } }
     );
     if (!res.ok) return null;
     return await res.json();

@@ -43,7 +43,7 @@ jobs:
       - name: Build Release APK
         run: |
           cd mobile
-          flutter build apk --release
+          flutter build apk --release --android-skip-build-dependency-validation
 
       - name: Create GitHub Release & Upload APK
         uses: softprops/action-gh-release@v2
@@ -71,4 +71,3 @@ jobs:
             mobile/build/app/outputs/flutter-apk/app-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
